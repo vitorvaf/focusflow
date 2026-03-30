@@ -1,0 +1,93 @@
+# electron-builder.yml
+# Configuração do empacotamento do FocusFlow — Windows + Linux
+
+appId: com.focusflow.app
+productName: FocusFlow
+copyright: Copyright © 2026 FocusFlow
+
+directories:
+  buildResources: build
+  output: dist/installers
+
+# Backend .NET embarcado como recurso extra
+extraResources:
+  - from: "../FocusFlow.Api/bin/publish/"
+    to: "api"
+    filter:
+      - "**/*"
+
+files:
+  - "dist-electron/**/*"
+  - "dist-renderer/**/*"
+  - "package.json"
+  - "!node_modules/**/*.ts"
+  - "!node_modules/**/*.map"
+
+# ============================================
+# Windows
+# ============================================
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: msi
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: FocusFlow
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+
+msi:
+  oneClick: false
+  perMachine: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+# ============================================
+# Linux
+# ============================================
+linux:
+  icon: build/icons                # Pasta com ícones em múltiplas resoluções
+  category: Utility
+  maintainer: FocusFlow
+  synopsis: Pomodoro timer with Obsidian Kanban sync
+  description: >
+    Aplicativo de produtividade que combina Pomodoro timer
+    com Kanban board sincronizado com Obsidian.
+  target:
+    - target: AppImage             # Universal — roda em qualquer distro
+      arch: [x64, arm64]
+    - target: deb                  # Debian/Ubuntu
+      arch: [x64, arm64]
+
+appImage:
+  artifactName: "${productName}-${version}-${arch}.AppImage"
+
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+  artifactName: "${productName}-${version}-${arch}.deb"
+
+# ============================================
+# macOS (opcional, descomentar se necessário)
+# ============================================
+# mac:
+#   icon: build/icon.icns
+#   category: public.app-category.productivity
+#   target:
+#     - target: dmg
+#       arch: [x64, arm64]
+# dmg:
+#   artifactName: "${productName}-${version}-${arch}.dmg"
