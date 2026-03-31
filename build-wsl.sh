@@ -47,51 +47,77 @@ step() {
     echo ""
 }
 
-# Executa um comando no Windows via PowerShell com PATH completo.
+# Executa um comando no Windows com PATH completo (suporte a nvm-windows + UNC).
 #
-# Problema resolvido: o nvm-windows adiciona %NVM_HOME% e %NVM_SYMLINK%
-# no PATH do usuário como texto literal. O PowerShell com
-# [Environment]::GetEnvironmentVariable retorna esses tokens sem expandir.
-# Esta função resolve os tokens manualmente e adiciona os caminhos do nvm.
+# Problemas resolvidos:
+# 1. nvm-windows: %NVM_HOME% e %NVM_SYMLINK% no PATH não são expandidos
+# 2. Caminhos UNC: projetos no filesystem do WSL viram \\wsl.localhost\...
+#    e o CMD não suporta UNC como pasta de trabalho.
+#
+# Estratégia:
+# - PowerShell é usado UMA VEZ para resolver o PATH completo com nvm
+# - cmd.exe é chamado diretamente do bash (não aninhado dentro do PowerShell)
+# - cmd pushd mapeia UNC para drive temporário automaticamente
 #
 # Uso: win_exec "npm ci" "$WIN_ELECTRON_DIR"
+
+# Cache do PATH resolvido (calculado uma vez, reutilizado em todas as chamadas)
+_WIN_RESOLVED_PATH=""
+# Arquivo .cmd temporário em local acessível tanto pelo WSL quanto pelo Windows
+_TEMP_CMD="/mnt/c/Users/Public/focusflow_exec.cmd"
+
+_resolve_win_path() {
+    if [[ -n "$_WIN_RESOLVED_PATH" ]]; then
+        return
+    fi
+    # cd /mnt/c para que o powershell.exe herde C:\ (não UNC)
+    _WIN_RESOLVED_PATH=$(cd /mnt/c && powershell.exe -NoProfile -Command '
+        $p = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+             [Environment]::GetEnvironmentVariable("Path","User")
+        $nH = [Environment]::GetEnvironmentVariable("NVM_HOME","User")
+        $nS = [Environment]::GetEnvironmentVariable("NVM_SYMLINK","User")
+        if ($nH) { [Environment]::SetEnvironmentVariable("NVM_HOME",$nH,"Process") }
+        if ($nS) { [Environment]::SetEnvironmentVariable("NVM_SYMLINK",$nS,"Process") }
+        $p = [Environment]::ExpandEnvironmentVariables($p)
+        if ($nH -and $p -notlike "*$nH*") { $p += ";$nH" }
+        if ($nS -and $p -notlike "*$nS*") { $p += ";$nS" }
+        Write-Output $p
+    ' | tr -d '\r\n')
+}
+
 win_exec() {
     local cmd="$1"
     local dir="${2:-}"
-    local ps_cmd
 
-    # Montar PATH expandido: Machine + User + NVM paths
-    ps_cmd='
-        # Carregar PATH do registro (Machine + User)
-        $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-        $userPath    = [Environment]::GetEnvironmentVariable("Path", "User")
-        $fullPath    = "$machinePath;$userPath"
+    _resolve_win_path
 
-        # Carregar variáveis do nvm-windows
-        $nvmHome    = [Environment]::GetEnvironmentVariable("NVM_HOME", "User")
-        $nvmSymlink = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "User")
+    # Escrever um .cmd temporário evita TODOS os problemas de escaping.
+    # O PATH do Windows contém parentheses, espaços e caracteres especiais
+    # (ex: "Program Files (x86)") que quebram cmd.exe /c "set PATH=...".
+    # Escrevendo num arquivo, o conteúdo é literal — sem parsing de shell.
+    {
+        echo '@echo off'
+        echo "set \"PATH=$_WIN_RESOLVED_PATH\""
+        if [[ -n "$dir" ]]; then
+            # pushd mapeia UNC para drive temporário automaticamente
+            echo "pushd \"$dir\" || exit /b 1"
+        fi
+        echo "$cmd"
+        echo "set EXITCODE=%ERRORLEVEL%"
+        if [[ -n "$dir" ]]; then
+            echo "popd"
+        fi
+        echo "exit /b %EXITCODE%"
+    } > "$_TEMP_CMD"
 
-        # Definir no ambiente atual para que %NVM_HOME% e %NVM_SYMLINK% resolvam
-        if ($nvmHome)    { $env:NVM_HOME    = $nvmHome }
-        if ($nvmSymlink) { $env:NVM_SYMLINK = $nvmSymlink }
+    # cd /mnt/c para evitar herança de cwd UNC
+    local win_cmd_path
+    win_cmd_path=$(cd /mnt/c && wslpath -w "$_TEMP_CMD")
+    (cd /mnt/c && cmd.exe /c "$win_cmd_path")
+    local rc=$?
 
-        # Expandir tokens %VAR% no PATH (ex: %NVM_HOME% → C:\Users\...\nvm)
-        $fullPath = [Environment]::ExpandEnvironmentVariables($fullPath)
-
-        # Garantir que os caminhos do nvm estejam no PATH mesmo se não
-        # apareceram como %tokens% (cobre instalações manuais)
-        if ($nvmHome -and $fullPath -notlike "*$nvmHome*")       { $fullPath += ";$nvmHome" }
-        if ($nvmSymlink -and $fullPath -notlike "*$nvmSymlink*") { $fullPath += ";$nvmSymlink" }
-
-        $env:Path = $fullPath
-    '
-
-    if [[ -n "$dir" ]]; then
-        ps_cmd="$ps_cmd; Set-Location '$dir'"
-    fi
-    ps_cmd="$ps_cmd; $cmd"
-
-    powershell.exe -NoProfile -Command "$ps_cmd"
+    rm -f "$_TEMP_CMD" 2>/dev/null
+    return $rc
 }
 
 # ============================================
@@ -167,8 +193,8 @@ WIN_ROOT_DIR="$(to_windows_path "$ROOT_DIR")"
 WIN_ELECTRON_DIR="$(to_windows_path "$ELECTRON_DIR")"
 WIN_API_PUBLISH_DIR="$(to_windows_path "$API_PUBLISH_DIR")"
 
-echo -e "  Caminho WSL:     ${YELLOW}$ROOT_DIR${NC}"
-echo -e "  Caminho Windows: ${YELLOW}$WIN_ROOT_DIR${NC}"
+echo -e "  Caminho WSL:     ${YELLOW}${ROOT_DIR}${NC}"
+printf "  Caminho Windows: ${YELLOW}%s${NC}\n" "$WIN_ROOT_DIR"
 
 # ============================================
 # ETAPA 1: Publicar backend .NET (no WSL — rápido!)
@@ -213,8 +239,13 @@ fi
 # ============================================
 step "Etapa 2/3 — Compilando frontend (via Windows Node.js)"
 
+if [ -d "$ELECTRON_DIR/node_modules" ]; then
+    echo "  Limpando node_modules anterior..."
+    rm -rf "$ELECTRON_DIR/node_modules"
+fi
+
 echo "  Instalando dependências npm..."
-win_exec "npm ci --silent" "$WIN_ELECTRON_DIR"
+win_exec "npm ci" "$WIN_ELECTRON_DIR"
 
 echo "  Compilando renderer (Vite)..."
 win_exec "npm run build:renderer" "$WIN_ELECTRON_DIR"
@@ -229,24 +260,47 @@ echo -e "${GREEN}  Frontend compilado com sucesso${NC}"
 # ============================================
 step "Etapa 3/3 — Gerando instalador Windows (via electron-builder)"
 
+# Limpa cache corrompido do winCodeSign (ocorre quando symlinks falharam na extração)
+echo "  Limpando cache winCodeSign..."
+win_exec "if exist \"%LOCALAPPDATA%\\electron-builder\\Cache\\winCodeSign\" rmdir /s /q \"%LOCALAPPDATA%\\electron-builder\\Cache\\winCodeSign\""
+
+# O WiX (light.exe) usa código C++ nativo que não consegue escrever em caminhos
+# Z:\ (filesystem WSL mapeado). O output precisa ir para um caminho nativo do
+# Windows (C:) e depois copiamos os instaladores de volta para o projeto.
+WIN_DIST_TEMP="C:\\Users\\Public\\focusflow-dist"
+WSL_DIST_TEMP="/mnt/c/Users/Public/focusflow-dist"
+INSTALLER_DIR="$ELECTRON_DIR/dist/installers"
+
+echo "  Limpando diretório de output temporário..."
+win_exec "if exist \"$WIN_DIST_TEMP\" rmdir /s /q \"$WIN_DIST_TEMP\""
+mkdir -p "$WSL_DIST_TEMP"
+
+EB_OUT_FLAG="--config.directories.output=$WIN_DIST_TEMP"
+
 case "$TARGET" in
     exe)
         echo "  Gerando instalador NSIS (.exe)..."
-        win_exec "npx electron-builder --win nsis --config electron-builder.yml" "$WIN_ELECTRON_DIR"
+        win_exec "npx electron-builder --win nsis --config electron-builder.yml $EB_OUT_FLAG" "$WIN_ELECTRON_DIR"
         ;;
     msi)
         echo "  Gerando instalador MSI (.msi)..."
-        win_exec "npx electron-builder --win msi --config electron-builder.yml" "$WIN_ELECTRON_DIR"
+        win_exec "npx electron-builder --win msi --config electron-builder.yml $EB_OUT_FLAG" "$WIN_ELECTRON_DIR"
         ;;
     all)
         echo "  Gerando instaladores NSIS (.exe) e MSI (.msi)..."
-        win_exec "npx electron-builder --win nsis msi --config electron-builder.yml" "$WIN_ELECTRON_DIR"
+        win_exec "npx electron-builder --win nsis msi --config electron-builder.yml $EB_OUT_FLAG" "$WIN_ELECTRON_DIR"
         ;;
     *)
         echo -e "${RED}Target inválido: $TARGET${NC}"
         exit 1
         ;;
 esac
+
+echo "  Copiando instaladores para o projeto..."
+mkdir -p "$INSTALLER_DIR"
+find "$WSL_DIST_TEMP" -maxdepth 2 \( -name "*.exe" -o -name "*.msi" \) \
+    -exec cp {} "$INSTALLER_DIR/" \;
+rm -rf "$WSL_DIST_TEMP"
 
 # ============================================
 # Resultado
@@ -278,5 +332,5 @@ echo "  ou execute diretamente:"
 echo ""
 
 WIN_INSTALLER_DIR="$(to_windows_path "$INSTALLER_DIR")"
-echo -e "    explorer.exe \"${WIN_INSTALLER_DIR}\""
+printf "    explorer.exe \"%s\"\n" "$WIN_INSTALLER_DIR"
 echo ""
