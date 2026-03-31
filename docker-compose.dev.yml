@@ -1,0 +1,44 @@
+# docker-compose.dev.yml — Desenvolvimento (com hot reload)
+# Uso: docker compose -f docker-compose.dev.yml up --build
+#
+# Diferenças em relação à produção:
+#   - API roda com ASPNETCORE_ENVIRONMENT=Development (Swagger ativo)
+#   - renderer usa Vite dev server com hot reload (bind mount no source)
+
+services:
+  api:
+    build:
+      context: ./src/FocusFlow.Api
+      dockerfile: Dockerfile
+    ports:
+      - "5111:5111"
+    volumes:
+      - focusflow_db:/app/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5111/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  renderer:
+    build:
+      context: ./src/FocusFlow.Electron
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # Bind mount do source para hot reload
+      - ./src/FocusFlow.Electron:/app
+      # Volume anônimo para preservar node_modules instalados na imagem
+      - /app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  focusflow_db:

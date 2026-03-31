@@ -1,0 +1,6 @@
+node_modules/
+dist-electron/
+dist-renderer/
+*.md
+.electron-builder/
+coverage/

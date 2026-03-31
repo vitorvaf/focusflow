@@ -1,0 +1,15 @@
+# Desenvolvimento: Vite dev server com hot reload
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# Source code will be bind-mounted via docker-compose;
+# copying here makes the image usable standalone as well.
+COPY . .
+
+EXPOSE 5173
+
+# --host exposes the dev server to all interfaces inside the container
+CMD ["npx", "vite", "--host", "0.0.0.0"]

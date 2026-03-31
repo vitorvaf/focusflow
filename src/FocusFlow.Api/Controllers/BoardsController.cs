@@ -45,4 +45,22 @@ public class BoardsController : ControllerBase
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = board.Id }, board);
     }
+
+    /// <summary>Updates an existing board (name and vault path).</summary>
+    /// <param name="id">Board ID.</param>
+    /// <param name="board">Updated board data.</param>
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<Board>> Update(int id, [FromBody] Board board)
+    {
+        var existing = await _db.Boards.FirstOrDefaultAsync(b => b.Id == id);
+        if (existing is null)
+            return NotFound(new ProblemDetails { Title = "Board não encontrado", Status = 404 });
+
+        existing.Name = board.Name;
+        existing.VaultPath = board.VaultPath;
+        existing.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(existing);
+    }
 }

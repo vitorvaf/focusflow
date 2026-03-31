@@ -1,0 +1,41 @@
+# docker-compose.yml — Produção
+# Uso: docker compose up --build
+#
+# Serviços:
+#   api       → .NET 8 Web API em http://localhost:5111
+#   renderer  → React (Nginx) em http://localhost:5173
+#
+# O banco SQLite fica persistido no volume "focusflow_db".
+
+services:
+  api:
+    build:
+      context: ./src/FocusFlow.Api
+      dockerfile: Dockerfile
+    ports:
+      - "5111:5111"
+    volumes:
+      - focusflow_db:/app/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5111/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  renderer:
+    build:
+      context: ./src/FocusFlow.Electron
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  focusflow_db:

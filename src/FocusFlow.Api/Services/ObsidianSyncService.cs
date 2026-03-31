@@ -44,10 +44,13 @@ public class ObsidianSyncService
             return;
         }
 
-        Directory.CreateDirectory(board.VaultPath);
+        // Normalize path: ensure all slashes are backslashes (Windows-style)
+        var normalizedPath = board.VaultPath.Replace("/", "\\").TrimEnd('\\');
+        Directory.CreateDirectory(normalizedPath);
 
         var markdown = GenerateKanbanMarkdown(board);
-        var filePath = Path.Combine(board.VaultPath, $"{board.Name}.md");
+        // Use manual string concatenation with backslash to ensure consistency on all platforms
+        var filePath = normalizedPath + "\\" + board.Name + ".md";
         var tmpPath  = filePath + ".tmp";
 
         await File.WriteAllTextAsync(tmpPath, markdown, Utf8NoBom);
