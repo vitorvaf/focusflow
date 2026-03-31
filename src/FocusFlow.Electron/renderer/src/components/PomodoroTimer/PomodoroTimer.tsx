@@ -101,6 +101,18 @@ export function PomodoroTimer({ tasks, selectedTaskId, onSelectTask, onTaskUpdat
       {error && (
         <p className="text-sm text-red-400 text-center max-w-xs">{error}</p>
       )}
+
+      {/* Mini timer toggle — only visible when running inside Electron */}
+      {typeof window !== 'undefined' && window.electronAPI && (
+        <button
+          onClick={() => window.electronAPI?.toggleMiniTimer()}
+          className="mt-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors
+                     flex items-center gap-1"
+          title="Abrir modo compacto (Ctrl+Shift+M)"
+        >
+          <span>🗗</span> Mini Timer
+        </button>
+      )}
     </div>
   );
 }

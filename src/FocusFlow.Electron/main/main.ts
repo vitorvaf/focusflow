@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, dialog, globalShortcut } from 'electron';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import { createTray, updateTrayTooltip, updateTrayMenu } from './tray';
+import { createMiniWindow, closeMiniWindow, isMiniWindowOpen } from './miniWindow';
 
 let mainWindow: BrowserWindow | null = null;
 let apiProcess: ChildProcess | null = null;
@@ -241,6 +242,28 @@ function registerIpcHandlers(): void {
   ipcMain.on('minimize-to-tray', () => {
     mainWindow?.hide();
   });
+
+  // Mini timer: toggle between main window and floating mini timer
+  ipcMain.on('toggle-mini-timer', () => {
+    if (isMiniWindowOpen()) {
+      closeMiniWindow();
+      mainWindow?.show();
+      mainWindow?.focus();
+      console.log('[IPC] toggle-mini-timer → janela principal restaurada');
+    } else {
+      mainWindow?.hide();
+      createMiniWindow();
+      console.log('[IPC] toggle-mini-timer → mini timer aberto');
+    }
+  });
+
+  // Expand: close mini and restore main window
+  ipcMain.on('expand-from-mini', () => {
+    closeMiniWindow();
+    mainWindow?.show();
+    mainWindow?.focus();
+    console.log('[IPC] expand-from-mini → janela principal restaurada');
+  });
 }
 
 /** Polls /api/pomodoro/status every 2s to update tray tooltip and context menu. */
@@ -321,6 +344,33 @@ app.whenReady().then(async () => {
       app.quit();
     }
   );
+
+  // Warn Linux users about GNOME system tray visibility
+  if (isLinux) {
+    console.log(
+      '[FocusFlow] ℹ️  Linux detectado. Se o ícone do tray não aparecer no GNOME, ' +
+      'instale a extensão "AppIndicator and KStatusNotifierItem Support": ' +
+      'https://extensions.gnome.org/extension/615/appindicator-support/'
+    );
+  }
+
+  // Global shortcut: Ctrl+Shift+M toggles the mini timer
+  const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+M', () => {
+    if (isMiniWindowOpen()) {
+      closeMiniWindow();
+      mainWindow?.show();
+      mainWindow?.focus();
+    } else {
+      mainWindow?.hide();
+      createMiniWindow();
+    }
+  });
+  if (shortcutRegistered) {
+    console.log('[FocusFlow] Atalho Ctrl+Shift+M registrado (toggle mini timer)');
+  } else {
+    console.warn('[FocusFlow] Não foi possível registrar Ctrl+Shift+M (já em uso?)');
+  }
+
   startStatusPolling();
 
   app.on('activate', () => {
@@ -330,6 +380,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
   if (statusPollInterval !== null) clearInterval(statusPollInterval);
 
   if (apiProcess && !apiProcess.killed) {

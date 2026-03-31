@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Header } from './components/Layout/Header';
 import { Sidebar, type ActiveView } from './components/Layout/Sidebar';
 import { KanbanBoard } from './components/TaskBoard/KanbanBoard';
 import { PomodoroTimer } from './components/PomodoroTimer/PomodoroTimer';
 import { StatsPanel } from './components/Stats/StatsPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
+import { MiniTimer } from './components/MiniTimer/MiniTimer';
 import { useTasks } from './hooks/useTasks';
 import { useSettings } from './hooks/useSettings';
 import './styles/global.css';
 
 const ACTIVE_BOARD_ID = 1;
 
-export function App() {
+function MainApp() {
   const [activeView, setActiveView]     = useState<ActiveView>('board');
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
@@ -30,7 +32,7 @@ export function App() {
 
   const handleTaskUpdated = (taskId: number) => {
     void refetchTasks();
-    void taskId; // taskId used for targeted refresh via refetchTasks
+    void taskId;
   };
 
   return (
@@ -62,5 +64,16 @@ export function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/mini-timer" element={<MiniTimer />} />
+      </Routes>
+    </HashRouter>
   );
 }

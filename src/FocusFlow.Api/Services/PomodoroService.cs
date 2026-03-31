@@ -247,6 +247,9 @@ public sealed class PomodoroService : IDisposable
 
             if (completed)
             {
+                _logger.LogInformation(
+                    "Timer concluído. Tipo: {Type}, TaskId: {TaskId}, SessionId: {SessionId}",
+                    type, taskId, sessionId);
                 _timer?.Stop();
                 ResetState();   // State is Idle before HandleCompletionAsync runs
             }
@@ -302,9 +305,14 @@ public sealed class PomodoroService : IDisposable
 
             await _hubContext.Clients.All.SendAsync("TimerComplete",
                 new { type = type.ToString(), taskId });
+            _logger.LogInformation(
+                "SignalR 'TimerComplete' enviado. Tipo: {Type}, TaskId: {TaskId}", type, taskId);
 
             if (taskId.HasValue)
+            {
                 await _hubContext.Clients.All.SendAsync("TaskUpdated", new { taskId });
+                _logger.LogInformation("SignalR 'TaskUpdated' enviado. TaskId: {TaskId}", taskId);
+            }
 
             // Auto-start next break after every Focus session
             if (type == PomodoroType.Focus && taskId.HasValue)

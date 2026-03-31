@@ -1,5 +1,6 @@
 import { Tray, Menu, nativeImage, BrowserWindow } from 'electron';
-import path from 'path';
+import * as path from 'path';
+import { createMiniWindow, closeMiniWindow, isMiniWindowOpen } from './miniWindow';
 
 const API_BASE = 'http://localhost:5111';
 
@@ -7,10 +8,25 @@ let tray: Tray | null = null;
 
 /** Loads the tray icon, falling back to an empty image if the file is missing. */
 function loadIcon(): Electron.NativeImage {
+  const iconPath = path.join(__dirname, 'assets/icon.png');
+
   try {
-    const iconPath = path.join(__dirname, 'assets/icon.png');
-    return nativeImage.createFromPath(iconPath);
-  } catch {
+    const image = nativeImage.createFromPath(iconPath);
+
+    // createFromPath returns an empty image (no throw) when the file is missing
+    if (image.isEmpty()) {
+      console.error(
+        '[Tray] ❌ Ícone do tray não encontrado ou inválido:',
+        iconPath,
+        '\n       Execute "npm run build:main" para copiar os assets para dist-electron/assets/'
+      );
+      return nativeImage.createEmpty();
+    }
+
+    console.log('[Tray] ✅ Ícone carregado:', iconPath);
+    return image;
+  } catch (err) {
+    console.error('[Tray] Erro ao carregar ícone:', err);
     return nativeImage.createEmpty();
   }
 }
@@ -76,6 +92,19 @@ function buildContextMenu(
   }
 
   items.push(
+    {
+      label: isMiniWindowOpen() ? '🗗 Fechar Mini Timer' : '🗗 Mini Timer',
+      click: () => {
+        if (isMiniWindowOpen()) {
+          closeMiniWindow();
+          BrowserWindow.getAllWindows()[0]?.show();
+        } else {
+          BrowserWindow.getAllWindows()[0]?.hide();
+          createMiniWindow();
+        }
+      },
+    },
+    { type: 'separator' },
     { label: 'Abrir App', click: onRestore },
     { type: 'separator' },
     { label: 'Sair', click: onQuit }

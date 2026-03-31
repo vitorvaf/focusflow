@@ -13,7 +13,7 @@
     "dev:main": "tsc -p tsconfig.electron.json && wait-on http://localhost:5173 && electron .",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
-    "build:main": "tsc -p tsconfig.electron.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', JSON.stringify({type:'commonjs'}))\"",
+    "build:main": "tsc -p tsconfig.electron.json && node -e \"const fs=require('fs'); fs.writeFileSync('dist-electron/package.json', JSON.stringify({type:'commonjs'})); fs.cpSync('main/assets', 'dist-electron/assets', {recursive:true}); console.log('[build] assets copiados → dist-electron/assets/')\"",
     "pack:exe": "npm run build && npx electron-builder --win nsis --config electron-builder.yml",
     "pack:msi": "npm run build && npx electron-builder --win msi --config electron-builder.yml",
     "pack:all": "npm run build && npx electron-builder --win nsis msi --config electron-builder.yml",
@@ -25,7 +25,8 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@microsoft/signalr": "^8.0.7",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.13.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
