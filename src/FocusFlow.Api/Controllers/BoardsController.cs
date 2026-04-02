@@ -1,5 +1,6 @@
 using FocusFlow.Api.Data;
 using FocusFlow.Api.Models;
+using FocusFlow.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +11,12 @@ namespace FocusFlow.Api.Controllers;
 public class BoardsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ObsidianSyncService _sync;
 
-    public BoardsController(AppDbContext db)
+    public BoardsController(AppDbContext db, ObsidianSyncService sync)
     {
         _db = db;
+        _sync = sync;
     }
 
     /// <summary>Returns all boards.</summary>
@@ -43,6 +46,7 @@ public class BoardsController : ControllerBase
         board.UpdatedAt = DateTime.UtcNow;
         _db.Boards.Add(board);
         await _db.SaveChangesAsync();
+        await _sync.SyncBoardToVault(board.Id);
         return CreatedAtAction(nameof(GetById), new { id = board.Id }, board);
     }
 
@@ -60,6 +64,7 @@ public class BoardsController : ControllerBase
         existing.VaultPath = board.VaultPath;
         existing.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await _sync.SyncBoardToVault(id);
 
         return Ok(existing);
     }

@@ -44,19 +44,36 @@ public class ObsidianSyncService
             return;
         }
 
-        // Normalize path: ensure all slashes are backslashes (Windows-style)
-        var normalizedPath = board.VaultPath.Replace("/", "\\").TrimEnd('\\');
-        Directory.CreateDirectory(normalizedPath);
+        var vaultPath = board.VaultPath.Trim();
+        var safeFileName = SanitizeFileName(board.Name) + ".md";
+        var filePath = Path.Combine(vaultPath, safeFileName);
+        var tmpPath = filePath + ".tmp";
 
-        var markdown = GenerateKanbanMarkdown(board);
-        // Use manual string concatenation with backslash to ensure consistency on all platforms
-        var filePath = normalizedPath + "\\" + board.Name + ".md";
-        var tmpPath  = filePath + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(vaultPath);
+            var markdown = GenerateKanbanMarkdown(board);
+            await File.WriteAllTextAsync(tmpPath, markdown, Utf8NoBom);
+            File.Move(tmpPath, filePath, overwrite: true);
+            _logger.LogInformation("Synced board {BoardId} to {FilePath}", boardId, filePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync board {BoardId} to vault path '{VaultPath}'.", boardId, vaultPath);
+            if (File.Exists(tmpPath))
+            {
+                try { File.Delete(tmpPath); } catch { /* best-effort cleanup */ }
+            }
+        }
+    }
 
-        await File.WriteAllTextAsync(tmpPath, markdown, Utf8NoBom);
-        File.Move(tmpPath, filePath, overwrite: true);
-
-        _logger.LogInformation("Synced board {BoardId} to {FilePath}", boardId, filePath);
+    /// <summary>Replaces characters that are invalid in file names with underscores.</summary>
+    /// <param name="name">The raw board name.</param>
+    /// <returns>A safe file name string.</returns>
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c));
     }
 
     /// <summary>Generates the full Kanban Markdown content for a board.</summary>
