@@ -32,118 +32,113 @@ public class ObsidianSyncServiceTests : IDisposable
             Directory.Delete(_tempDir, recursive: true);
     }
 
-    // ── SyncBoardToVault ──────────────────────────────────────────────────────
+    // ── SyncProjectToVault ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SyncBoardToVault_BoardWithVaultPath_CreatesMarkdownFile()
+    public async Task SyncProjectToVault_ProjectWithVaultPath_CreatesMarkdownFile()
     {
-        var board = await SeedBoardAsync("Meu Board", _tempDir);
+        var project = await SeedProjectAsync("Meu Projeto", _tempDir);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        var expectedFile = Path.Combine(_tempDir, "Meu Board.md");
+        var expectedFile = Path.Combine(_tempDir, "Meu Projeto", "kanban.md");
         File.Exists(expectedFile).Should().BeTrue();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_BoardWithVaultPath_FileContainsKanbanFrontmatter()
+    public async Task SyncProjectToVault_ProjectWithVaultPath_FileContainsKanbanFrontmatter()
     {
-        var board = await SeedBoardAsync("Test Board", _tempDir);
+        var project = await SeedProjectAsync("Teste Projeto", _tempDir);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        var content = await File.ReadAllTextAsync(Path.Combine(_tempDir, "Test Board.md"));
+        var content = await File.ReadAllTextAsync(Path.Combine(_tempDir, "Teste Projeto", "kanban.md"));
         content.Should().StartWith("---\nkanban-plugin: basic\n---");
     }
 
     [Fact]
-    public async Task SyncBoardToVault_BoardWithoutVaultPath_DoesNotCreateFile()
+    public async Task SyncProjectToVault_ProjectWithoutVaultPath_DoesNotCreateFile()
     {
-        var board = await SeedBoardAsync("No Vault Board", vaultPath: null);
+        var project = await SeedProjectAsync("Sem Vault", vaultPath: null);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
         Directory.GetFiles(_tempDir).Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_BoardWithWhitespaceVaultPath_DoesNotCreateFile()
+    public async Task SyncProjectToVault_ProjectWithWhitespaceVaultPath_DoesNotCreateFile()
     {
-        var board = await SeedBoardAsync("Whitespace Board", vaultPath: "   ");
+        var project = await SeedProjectAsync("Espaço em Branco", vaultPath: "   ");
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
         Directory.GetFiles(_tempDir).Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_NonExistentBoardId_DoesNotThrow()
+    public async Task SyncProjectToVault_NonExistentProjectId_DoesNotThrow()
     {
-        var act = async () => await _sut.SyncBoardToVault(9999);
+        var act = async () => await _sut.SyncProjectToVault(9999);
 
         await act.Should().NotThrowAsync();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_VaultDirDoesNotExist_CreatesDirectoryAndFile()
+    public async Task SyncProjectToVault_VaultDirDoesNotExist_CreatesDirectoryAndFile()
     {
         var nestedDir = Path.Combine(_tempDir, "nested", "vault");
-        var board = await SeedBoardAsync("Nested Board", nestedDir);
+        var project = await SeedProjectAsync("Projeto Aninhado", nestedDir);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        File.Exists(Path.Combine(nestedDir, "Nested Board.md")).Should().BeTrue();
+        File.Exists(Path.Combine(nestedDir, "Projeto Aninhado", "kanban.md")).Should().BeTrue();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_BoardNameWithInvalidChars_CreatesSanitizedFile()
+    public async Task SyncProjectToVault_ProjectNameWithInvalidChars_CreatesSanitizedFile()
     {
-        // Use a slash, which is invalid on all platforms (Linux and Windows)
-        var board = await SeedBoardAsync("Board/With/Slashes", _tempDir);
+        var project = await SeedProjectAsync("Projeto/Com/Slash", _tempDir);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        // Slashes replaced with underscores on all platforms
-        var expectedFile = Path.Combine(_tempDir, "Board_With_Slashes.md");
+        var expectedFile = Path.Combine(_tempDir, "Projeto_Com_Slash", "kanban.md");
         File.Exists(expectedFile).Should().BeTrue();
     }
 
     [Fact]
-    public async Task SyncBoardToVault_CalledTwice_OverwritesExistingFile()
+    public async Task SyncProjectToVault_CalledTwice_OverwritesExistingFile()
     {
-        var board = await SeedBoardAsync("Overwrite Board", _tempDir);
-        await _sut.SyncBoardToVault(board.Id);
+        var project = await SeedProjectAsync("Sobrescrever Projeto", _tempDir);
+        await _sut.SyncProjectToVault(project.Id);
 
-        // Add a task between syncs
-        _db.Tasks.Add(new TaskItem { BoardId = board.Id, Title = "Nova Tarefa", Status = TaskStatus.Todo });
+        _db.Tasks.Add(new TaskItem { ProjectId = project.Id, Title = "Nova Tarefa", Status = TaskStatus.Todo });
         await _db.SaveChangesAsync();
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        var content = await File.ReadAllTextAsync(Path.Combine(_tempDir, "Overwrite Board.md"));
+        var content = await File.ReadAllTextAsync(Path.Combine(_tempDir, "Sobrescrever Projeto", "kanban.md"));
         content.Should().Contain("Nova Tarefa");
     }
 
     [Fact]
-    public async Task SyncBoardToVault_VaultPathWithForwardSlashes_CreatesFileCorrectly()
+    public async Task SyncProjectToVault_VaultPathWithForwardSlashes_CreatesFileCorrectly()
     {
-        // Vault path may be provided with forward slashes on any platform
         var forwardSlashPath = _tempDir.Replace(Path.DirectorySeparatorChar, '/');
-        var board = await SeedBoardAsync("Unix Path Board", forwardSlashPath);
+        var project = await SeedProjectAsync("Unix Path Projeto", forwardSlashPath);
 
-        await _sut.SyncBoardToVault(board.Id);
+        await _sut.SyncProjectToVault(project.Id);
 
-        // Path.Combine handles this correctly — file should exist
-        File.Exists(Path.Combine(_tempDir, "Unix Path Board.md")).Should().BeTrue();
+        File.Exists(Path.Combine(_tempDir, "Unix Path Projeto", "kanban.md")).Should().BeTrue();
     }
 
     // ── GenerateKanbanMarkdown ────────────────────────────────────────────────
 
     [Fact]
-    public void GenerateKanbanMarkdown_EmptyBoard_ContainsFourColumns()
+    public void GenerateKanbanMarkdown_EmptyProject_ContainsFourColumns()
     {
-        var board = new Board { Id = 1, Name = "Empty", Tasks = [] };
+        var project = new Project { Id = 1, Name = "Empty", Tasks = [] };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("## Backlog");
         markdown.Should().Contain("## A Fazer");
@@ -154,17 +149,17 @@ public class ObsidianSyncServiceTests : IDisposable
     [Fact]
     public void GenerateKanbanMarkdown_PendingTask_FormatsAsUnchecked()
     {
-        var board = new Board
+        var project = new Project
         {
             Id = 1,
-            Name = "Board",
+            Name = "Project",
             Tasks =
             [
                 new TaskItem { Title = "Tarefa Backlog", Status = TaskStatus.Backlog, Tags = [], EstimatedPomodoros = 0 }
             ]
         };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("- [ ] Tarefa Backlog");
     }
@@ -173,10 +168,10 @@ public class ObsidianSyncServiceTests : IDisposable
     public void GenerateKanbanMarkdown_DoneTask_FormatsAsCheckedWithDate()
     {
         var completedAt = new DateTime(2025, 3, 15, 0, 0, 0, DateTimeKind.Utc);
-        var board = new Board
+        var project = new Project
         {
             Id = 1,
-            Name = "Board",
+            Name = "Project",
             Tasks =
             [
                 new TaskItem
@@ -190,7 +185,7 @@ public class ObsidianSyncServiceTests : IDisposable
             ]
         };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("- [x] Tarefa Concluída ✅ 2025-03-15");
     }
@@ -198,10 +193,10 @@ public class ObsidianSyncServiceTests : IDisposable
     [Fact]
     public void GenerateKanbanMarkdown_TaskWithPomodoroEstimate_IncludesPomodoroCount()
     {
-        var board = new Board
+        var project = new Project
         {
             Id = 1,
-            Name = "Board",
+            Name = "Project",
             Tasks =
             [
                 new TaskItem
@@ -215,7 +210,7 @@ public class ObsidianSyncServiceTests : IDisposable
             ]
         };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("🍅 1/4");
     }
@@ -223,10 +218,10 @@ public class ObsidianSyncServiceTests : IDisposable
     [Fact]
     public void GenerateKanbanMarkdown_TaskWithTags_FormatsTagsAsHashSlug()
     {
-        var board = new Board
+        var project = new Project
         {
             Id = 1,
-            Name = "Board",
+            Name = "Project",
             Tasks =
             [
                 new TaskItem
@@ -239,7 +234,7 @@ public class ObsidianSyncServiceTests : IDisposable
             ]
         };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("#minha-tag");
     }
@@ -247,17 +242,17 @@ public class ObsidianSyncServiceTests : IDisposable
     [Fact]
     public void GenerateKanbanMarkdown_ArchivedTask_IsExcludedFromAllColumns()
     {
-        var board = new Board
+        var project = new Project
         {
             Id = 1,
-            Name = "Board",
+            Name = "Project",
             Tasks =
             [
                 new TaskItem { Title = "Arquivada", Status = TaskStatus.Archived, Tags = [], EstimatedPomodoros = 0 }
             ]
         };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().NotContain("Arquivada");
     }
@@ -265,9 +260,9 @@ public class ObsidianSyncServiceTests : IDisposable
     [Fact]
     public void GenerateKanbanMarkdown_ContainsKanbanSettingsFooter()
     {
-        var board = new Board { Id = 1, Name = "Board", Tasks = [] };
+        var project = new Project { Id = 1, Name = "Project", Tasks = [] };
 
-        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(board);
+        var markdown = ObsidianSyncService.GenerateKanbanMarkdown(project);
 
         markdown.Should().Contain("%% kanban:settings");
         markdown.Should().Contain("\"kanban-plugin\":\"basic\"");
@@ -276,11 +271,11 @@ public class ObsidianSyncServiceTests : IDisposable
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private async Task<Board> SeedBoardAsync(string name, string? vaultPath)
+    private async Task<Project> SeedProjectAsync(string name, string? vaultPath)
     {
-        var board = new Board { Name = name, VaultPath = vaultPath };
-        _db.Boards.Add(board);
+        var project = new Project { Name = name, VaultPath = vaultPath };
+        _db.Projects.Add(project);
         await _db.SaveChangesAsync();
-        return board;
+        return project;
     }
 }

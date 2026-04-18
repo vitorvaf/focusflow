@@ -30,6 +30,7 @@ public sealed class PomodoroService : IDisposable
     private int  _remainingSeconds;
     private int  _totalSeconds;
     private int? _currentTaskId;
+    private int? _currentProjectId;
     private int? _currentSessionId;
     private int  _completedFocusInCycle;
 
@@ -54,9 +55,10 @@ public sealed class PomodoroService : IDisposable
 
     /// <summary>Starts a new Pomodoro session for the given task.</summary>
     /// <param name="taskId">The task to associate with this session.</param>
+    /// <param name="projectId">The project to associate with this session.</param>
     /// <param name="type">Session type: Focus, ShortBreak, or LongBreak.</param>
     /// <returns>The timer status immediately after starting.</returns>
-    public async Task<PomodoroStatusDto> StartAsync(int taskId, PomodoroType type)
+    public async Task<PomodoroStatusDto> StartAsync(int taskId, int projectId, PomodoroType type)
     {
         lock (_lock)
         {
@@ -93,6 +95,7 @@ public sealed class PomodoroService : IDisposable
             _internalState    = InternalState.Running;
             _currentType      = type;
             _currentTaskId    = taskId;
+            _currentProjectId = projectId;
             _currentSessionId = sessionId;
             _remainingSeconds = durationMinutes * 60;
             _totalSeconds     = durationMinutes * 60;
@@ -230,7 +233,7 @@ public sealed class PomodoroService : IDisposable
     {
         int remaining, total;
         PomodoroType type;
-        int? taskId, sessionId;
+        int? taskId, projectId, sessionId;
         bool completed;
 
         lock (_lock)
@@ -242,16 +245,17 @@ public sealed class PomodoroService : IDisposable
             total     = _totalSeconds;
             type      = _currentType;
             taskId    = _currentTaskId;
+            projectId = _currentProjectId;
             sessionId = _currentSessionId;
             completed = _remainingSeconds <= 0;
 
             if (completed)
             {
                 _logger.LogInformation(
-                    "Timer concluído. Tipo: {Type}, TaskId: {TaskId}, SessionId: {SessionId}",
-                    type, taskId, sessionId);
+                    "Timer concluído. Tipo: {Type}, TaskId: {TaskId}, ProjectId: {ProjectId}, SessionId: {SessionId}",
+                    type, taskId, projectId, sessionId);
                 _timer?.Stop();
-                ResetState();   // State is Idle before HandleCompletionAsync runs
+                ResetState();
             }
         }
 
@@ -259,16 +263,14 @@ public sealed class PomodoroService : IDisposable
             new { remainingSeconds = remaining, totalSeconds = total, type = type.ToString() });
 
         if (completed)
-            _ = HandleCompletionAsync(type, taskId, sessionId);
+            _ = HandleCompletionAsync(type, taskId, projectId, sessionId);
     }
 
     private async Task HandleCompletionAsync(
-        PomodoroType type, int? taskId, int? sessionId)
+        PomodoroType type, int? taskId, int? projectId, int? sessionId)
     {
         try
         {
-            int? boardId = null;
-
             using (var scope = _scopeFactory.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -289,18 +291,18 @@ public sealed class PomodoroService : IDisposable
                     var task = await db.Tasks.FindAsync(taskId.Value);
                     if (task is not null)
                     {
-                        boardId = task.BoardId;
+                        projectId = task.ProjectId;
                         task.CompletedPomodoros++;
                         await db.SaveChangesAsync();
                     }
                 }
             }
 
-            if (type == PomodoroType.Focus && boardId.HasValue)
+            if (type == PomodoroType.Focus && projectId.HasValue)
             {
                 using var scope = _scopeFactory.CreateScope();
                 var sync = scope.ServiceProvider.GetRequiredService<ObsidianSyncService>();
-                await sync.SyncBoardToVault(boardId.Value);
+                await sync.SyncProjectToVault(projectId.Value);
             }
 
             await _hubContext.Clients.All.SendAsync("TimerComplete",
@@ -315,7 +317,7 @@ public sealed class PomodoroService : IDisposable
             }
 
             // Auto-start next break after every Focus session
-            if (type == PomodoroType.Focus && taskId.HasValue)
+            if (type == PomodoroType.Focus && taskId.HasValue && projectId.HasValue)
             {
                 PomodoroType breakType;
                 lock (_lock)
@@ -325,7 +327,7 @@ public sealed class PomodoroService : IDisposable
                         ? PomodoroType.LongBreak
                         : PomodoroType.ShortBreak;
                 }
-                await StartAsync(taskId.Value, breakType);
+                await StartAsync(taskId.Value, projectId.Value, breakType);
             }
         }
         catch (Exception ex)
@@ -350,6 +352,7 @@ public sealed class PomodoroService : IDisposable
                 State            = state,
                 Type             = _internalState == InternalState.Idle ? null : _currentType,
                 TaskId           = _currentTaskId,
+                ProjectId        = _currentProjectId,
                 RemainingSeconds = _remainingSeconds,
                 TotalSeconds     = _totalSeconds,
                 SessionId        = _currentSessionId,
@@ -361,6 +364,7 @@ public sealed class PomodoroService : IDisposable
     {
         _internalState    = InternalState.Idle;
         _currentTaskId    = null;
+        _currentProjectId = null;
         _currentSessionId = null;
         _remainingSeconds = 0;
         _totalSeconds     = 0;

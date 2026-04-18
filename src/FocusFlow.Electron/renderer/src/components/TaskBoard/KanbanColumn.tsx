@@ -8,13 +8,13 @@ import { TaskForm } from './TaskForm';
 interface KanbanColumnProps {
   title: string;
   status: TaskStatus;
-  boardId: number;
+  projectId: number;
   tasks: TaskItemDto[];
   onSelectTask: (taskId: number) => void;
   onCreateTask: (data: CreateTaskRequest) => Promise<void>;
 }
 
-export function KanbanColumn({ title, status, boardId, tasks, onSelectTask, onCreateTask }: KanbanColumnProps) {
+export function KanbanColumn({ title, status, projectId, tasks, onSelectTask, onCreateTask }: KanbanColumnProps) {
   const [showForm, setShowForm] = useState(false);
 
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -23,7 +23,7 @@ export function KanbanColumn({ title, status, boardId, tasks, onSelectTask, onCr
   const taskIds = sortedTasks.map(t => t.id);
 
   const handleCreate = async (data: CreateTaskRequest | UpdateTaskRequest) => {
-    await onCreateTask({ ...(data as CreateTaskRequest), boardId });
+    await onCreateTask({ ...(data as CreateTaskRequest), projectId });
     setShowForm(false);
   };
 
@@ -64,7 +64,7 @@ export function KanbanColumn({ title, status, boardId, tasks, onSelectTask, onCr
       {/* Add task */}
       {showForm ? (
         <TaskForm
-          boardId={boardId}
+          projectId={projectId}
           defaultStatus={status}
           onSubmit={handleCreate}
           onCancel={() => setShowForm(false)}

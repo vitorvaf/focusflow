@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { ProjectForm } from './ProjectForm';
+
 export type ActiveView = 'board' | 'timer' | 'stats' | 'settings';
 
 interface SidebarProps {
@@ -44,8 +48,41 @@ function SettingsIcon() {
   );
 }
 
+function FolderIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg 
+      className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`} 
+      fill="none" 
+      stroke="currentColor" 
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {
-  const items: NavItem[] = [
+  const { projects, selectedProject, selectProject, isLoading } = useProjectContext();
+  const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+
+  const navItems: NavItem[] = [
     { id: 'board',    label: 'Quadro',        icon: <BoardIcon /> },
     { id: 'timer',    label: 'Timer',         icon: <TimerIcon /> },
     { id: 'stats',    label: 'Estatísticas',  icon: <StatsIcon /> },
@@ -53,21 +90,83 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   ];
 
   return (
-    <nav className="flex flex-col w-52 shrink-0 h-full border-r border-gray-700 bg-gray-900 p-2 gap-1">
-      {items.map(item => (
-        <button
-          key={item.id}
-          onClick={() => onNavigate(item.id)}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-            activeView === item.id
-              ? 'bg-indigo-600 text-white font-medium'
-              : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
-          }`}
-        >
-          {item.icon}
-          {item.label}
-        </button>
-      ))}
-    </nav>
+    <>
+      <nav className="flex flex-col w-56 shrink-0 h-full border-r border-gray-700 bg-gray-900">
+        <div className="flex-1 overflow-y-auto p-2">
+          <div className="mb-2">
+            <button
+              onClick={() => setProjectsExpanded(!projectsExpanded)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider hover:text-gray-200"
+            >
+              <ChevronIcon expanded={projectsExpanded} />
+              Projetos
+            </button>
+
+            {projectsExpanded && (
+              <div className="mt-1 space-y-1">
+                {isLoading ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">Carregando...</div>
+                ) : (
+                  projects.map(project => (
+                    <button
+                      key={project.id}
+                      onClick={() => selectProject(project.id)}
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                        selectedProject?.id === project.id
+                          ? 'bg-indigo-600 text-white font-medium'
+                          : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
+                      }`}
+                    >
+                      <div 
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{ 
+                          backgroundColor: project.color + '20',
+                          color: project.color
+                        }}
+                      >
+                        {project.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="flex-1 truncate">{project.name}</span>
+                      <span className={`text-xs ${selectedProject?.id === project.id ? 'text-indigo-200' : 'text-gray-500'}`}>
+                        {project.taskCount}
+                      </span>
+                    </button>
+                  ))
+                )}
+
+                <button
+                  onClick={() => setShowProjectForm(true)}
+                  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-100 transition-colors"
+                >
+                  <PlusIcon />
+                  Novo Projeto
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-700 pt-2 mt-2">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                  activeView === item.id
+                    ? 'bg-indigo-600 text-white font-medium'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {showProjectForm && (
+        <ProjectForm onClose={() => setShowProjectForm(false)} />
+      )}
+    </>
   );
 }

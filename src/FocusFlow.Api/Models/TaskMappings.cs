@@ -9,7 +9,7 @@ public static class TaskMappings
     public static TaskItemDto ToDto(this TaskItem task) => new()
     {
         Id                 = task.Id,
-        BoardId            = task.BoardId,
+        ProjectId          = task.ProjectId,
         Title              = task.Title,
         Description        = task.Description,
         Status             = task.Status,
@@ -39,7 +39,7 @@ public static class TaskMappings
     /// <returns>An unsaved <see cref="TaskItem"/> entity.</returns>
     public static TaskItem ToEntity(this CreateTaskRequest request) => new()
     {
-        BoardId            = request.BoardId,
+        ProjectId          = request.ProjectId,
         Title              = request.Title,
         Description        = request.Description,
         Priority           = request.Priority,

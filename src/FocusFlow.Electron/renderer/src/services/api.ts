@@ -1,6 +1,7 @@
 import type {
-  BoardDto,
-  CreateBoardRequest,
+  ProjectDto,
+  CreateProjectRequest,
+  UpdateProjectRequest,
   TaskItemDto,
   CreateTaskRequest,
   UpdateTaskRequest,
@@ -42,22 +43,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const boardsApi = {
+export const projectsApi = {
   list: () =>
-    request<BoardDto[]>('/boards'),
+    request<ProjectDto[]>('/projects'),
   getById: (id: number) =>
-    request<BoardDto>(`/boards/${id}`),
-  create: (data: CreateBoardRequest) =>
-    request<BoardDto>('/boards', { method: 'POST', body: JSON.stringify(data) }),
-  sync: (id: number) =>
-    request<void>(`/boards/${id}/sync`, { method: 'POST' }),
-  restore: (id: number) =>
-    request<void>(`/boards/${id}/restore`, { method: 'POST' }),
+    request<ProjectDto>(`/projects/${id}`),
+  create: (data: CreateProjectRequest) =>
+    request<ProjectDto>('/projects', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: UpdateProjectRequest) =>
+    request<ProjectDto>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: number) =>
+    request<void>(`/projects/${id}`, { method: 'DELETE' }),
 };
 
 export const tasksApi = {
-  list: (boardId: number, status?: string) => {
-    const qs = status ? `?boardId=${boardId}&status=${status}` : `?boardId=${boardId}`;
+  list: (projectId: number, status?: string) => {
+    const qs = status ? `?projectId=${projectId}&status=${status}` : `?projectId=${projectId}`;
     return request<TaskItemDto[]>(`/tasks${qs}`);
   },
   getById: (id: number) =>

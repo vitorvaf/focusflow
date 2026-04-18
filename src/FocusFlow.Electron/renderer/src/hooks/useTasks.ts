@@ -4,15 +4,20 @@ import { ApiError } from '../services/api';
 import type { TaskItemDto, CreateTaskRequest, UpdateTaskRequest, TaskStatus } from '../types';
 
 /** Full CRUD task management with optimistic updates. */
-export function useTasks(boardId: number) {
+export function useTasks(projectId: number) {
   const [tasks, setTasks] = useState<TaskItemDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
+    if (!projectId) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await tasksApi.list(boardId);
+      const data = await tasksApi.list(projectId);
       setTasks(data);
       setError(null);
     } catch (err) {
@@ -20,7 +25,7 @@ export function useTasks(boardId: number) {
     } finally {
       setLoading(false);
     }
-  }, [boardId]);
+  }, [projectId]);
 
   useEffect(() => {
     void fetchTasks();

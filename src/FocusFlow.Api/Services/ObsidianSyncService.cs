@@ -6,7 +6,6 @@ using TaskStatus = FocusFlow.Api.Models.TaskStatus;
 
 namespace FocusFlow.Api.Services;
 
-/// <summary>Generates and writes Kanban-plugin-compatible Markdown files to the Obsidian vault.</summary>
 public class ObsidianSyncService
 {
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
@@ -28,38 +27,37 @@ public class ObsidianSyncService
         _logger = logger;
     }
 
-    /// <summary>Syncs the given board to its configured Obsidian vault path.</summary>
-    /// <param name="boardId">The ID of the board to sync.</param>
-    public async Task SyncBoardToVault(int boardId)
+    public async Task SyncProjectToVault(int projectId)
     {
-        var board = await _db.Boards
+        var project = await _db.Projects
             .AsNoTracking()
-            .Include(b => b.Tasks.OrderBy(t => t.SortOrder))
+            .Include(p => p.Tasks.OrderBy(t => t.SortOrder))
                 .ThenInclude(t => t.Tags)
-            .FirstOrDefaultAsync(b => b.Id == boardId);
+            .FirstOrDefaultAsync(p => p.Id == projectId);
 
-        if (board is null || string.IsNullOrWhiteSpace(board.VaultPath))
+        if (project is null || string.IsNullOrWhiteSpace(project.VaultPath))
         {
-            _logger.LogDebug("Board {BoardId} has no vault path configured. Skipping sync.", boardId);
+            _logger.LogDebug("Project {ProjectId} has no vault path configured. Skipping sync.", projectId);
             return;
         }
 
-        var vaultPath = board.VaultPath.Trim();
-        var safeFileName = SanitizeFileName(board.Name) + ".md";
-        var filePath = Path.Combine(vaultPath, safeFileName);
+        var vaultPath = project.VaultPath.Trim();
+        var projectDir = SanitizeFileName(project.Name);
+        var dirPath = Path.Combine(vaultPath, projectDir);
+        var filePath = Path.Combine(dirPath, "kanban.md");
         var tmpPath = filePath + ".tmp";
 
         try
         {
-            Directory.CreateDirectory(vaultPath);
-            var markdown = GenerateKanbanMarkdown(board);
+            Directory.CreateDirectory(dirPath);
+            var markdown = GenerateKanbanMarkdown(project);
             await File.WriteAllTextAsync(tmpPath, markdown, Utf8NoBom);
             File.Move(tmpPath, filePath, overwrite: true);
-            _logger.LogInformation("Synced board {BoardId} to {FilePath}", boardId, filePath);
+            _logger.LogInformation("Synced project {ProjectId} to {FilePath}", projectId, filePath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to sync board {BoardId} to vault path '{VaultPath}'.", boardId, vaultPath);
+            _logger.LogError(ex, "Failed to sync project {ProjectId} to vault path '{VaultPath}'.", projectId, vaultPath);
             if (File.Exists(tmpPath))
             {
                 try { File.Delete(tmpPath); } catch { /* best-effort cleanup */ }
@@ -67,35 +65,27 @@ public class ObsidianSyncService
         }
     }
 
-    /// <summary>Replaces characters that are invalid in file names with underscores.</summary>
-    /// <param name="name">The raw board name.</param>
-    /// <returns>A safe file name string.</returns>
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
         return string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c));
     }
 
-    /// <summary>Generates the full Kanban Markdown content for a board.</summary>
-    /// <param name="board">The board with tasks and tags already loaded.</param>
-    /// <returns>The Markdown string in Obsidian Kanban plugin format.</returns>
-    internal static string GenerateKanbanMarkdown(Board board)
+    internal static string GenerateKanbanMarkdown(Project project)
     {
         var sb = new StringBuilder();
 
-        // Frontmatter
         sb.AppendLine("---");
         sb.AppendLine("kanban-plugin: basic");
         sb.AppendLine("---");
         sb.AppendLine();
 
-        // Columns — Archived tasks are excluded from all columns
         foreach (var (heading, status) in Columns)
         {
             sb.AppendLine(heading);
             sb.AppendLine();
 
-            var tasks = board.Tasks
+            var tasks = project.Tasks
                 .Where(t => t.Status == status)
                 .OrderBy(t => t.SortOrder);
 
@@ -105,7 +95,6 @@ public class ObsidianSyncService
             sb.AppendLine();
         }
 
-        // Kanban plugin settings footer
         sb.AppendLine("%% kanban:settings");
         sb.AppendLine("```json");
         sb.AppendLine("{\"kanban-plugin\":\"basic\",\"list-collapse\":[false,false,false,false]}");
@@ -129,7 +118,6 @@ public class ObsidianSyncService
         return $"- [ ] {task.Title}{tagsPart}{pomoPart}";
     }
 
-    /// <summary>Formats tag names as #lowercase-slug tokens.</summary>
     private static string BuildTagsPart(TaskItem task)
     {
         if (task.Tags.Count == 0) return string.Empty;
@@ -141,7 +129,6 @@ public class ObsidianSyncService
         return " " + string.Join(" ", tags);
     }
 
-    /// <summary>Returns the 🍅 completed/estimated part, or empty if not applicable.</summary>
     private static string BuildPomodorosPart(TaskItem task)
     {
         if (task.EstimatedPomodoros <= 0) return string.Empty;

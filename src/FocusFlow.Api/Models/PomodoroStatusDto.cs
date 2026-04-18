@@ -15,6 +15,9 @@ public class PomodoroStatusDto
     /// <summary>Task ID associated with the current session, or <c>null</c> when Idle.</summary>
     public int? TaskId { get; set; }
 
+    /// <summary>Project ID associated with the current session, or <c>null</c> when Idle.</summary>
+    public int? ProjectId { get; set; }
+
     /// <summary>Remaining seconds in the current interval.</summary>
     public int RemainingSeconds { get; set; }
 

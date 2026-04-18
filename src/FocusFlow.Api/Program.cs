@@ -19,6 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddSingleton<PomodoroService>();
 builder.Services.AddScoped<ObsidianSyncService>();
 
@@ -42,6 +43,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    var projectService = scope.ServiceProvider.GetRequiredService<IProjectService>();
+    await projectService.EnsureGeralProjectExistsAsync();
 }
 
 if (app.Environment.IsDevelopment())

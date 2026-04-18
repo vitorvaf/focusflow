@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FocusFlow.Api.Models;
 
-public class Board
+public class Project
 {
     public int Id { get; set; }
 
@@ -11,6 +11,9 @@ public class Board
 
     [MaxLength(500)]
     public string? VaultPath { get; set; }
+
+    [MaxLength(7)]
+    public string Color { get; set; } = "#6366f1";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
