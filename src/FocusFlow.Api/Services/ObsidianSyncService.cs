@@ -65,6 +65,41 @@ public class ObsidianSyncService
         }
     }
 
+    /// <summary>Deletes a previously generated Obsidian output for a project.</summary>
+    /// <param name="vaultPath">Vault path where the project output was generated.</param>
+    /// <param name="projectName">Project name used to build the folder name.</param>
+    public Task DeleteProjectVaultOutputAsync(string? vaultPath, string projectName)
+    {
+        if (string.IsNullOrWhiteSpace(vaultPath) || string.IsNullOrWhiteSpace(projectName))
+        {
+            return Task.CompletedTask;
+        }
+
+        var trimmedVaultPath = vaultPath.Trim();
+        var projectDir = SanitizeFileName(projectName);
+        var directoryPath = Path.Combine(trimmedVaultPath, projectDir);
+        var filePath = Path.Combine(directoryPath, "kanban.md");
+
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+
+            if (Directory.Exists(directoryPath) && !Directory.EnumerateFileSystemEntries(directoryPath).Any())
+            {
+                Directory.Delete(directoryPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete Obsidian output for project '{ProjectName}' in '{VaultPath}'.", projectName, trimmedVaultPath);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();

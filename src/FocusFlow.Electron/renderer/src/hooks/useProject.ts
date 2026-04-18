@@ -8,7 +8,7 @@ export interface UseProjectReturn {
   selectProject: (id: number) => void;
   createProject: (data: CreateProjectRequest) => Promise<ProjectDto>;
   updateProject: (id: number, data: UpdateProjectRequest) => Promise<ProjectDto>;
-  deleteProject: (id: number) => Promise<void>;
+  deleteProject: (id: number, targetProjectId?: number) => Promise<void>;
   refreshProjects: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
@@ -84,8 +84,12 @@ export function useProject(): UseProjectReturn {
     return updated;
   }, [refreshProjects, selectedProjectId]);
 
-  const deleteProject = useCallback(async (id: number): Promise<void> => {
-    await projectsApi.delete(id);
+  const deleteProject = useCallback(async (id: number, targetProjectId?: number): Promise<void> => {
+    await projectsApi.delete(
+      id,
+      targetProjectId !== undefined ? { targetProjectId } : undefined,
+    );
+
     if (selectedProjectId === id) {
       localStorage.removeItem(STORAGE_KEY);
       setSelectedProjectId(null);

@@ -48,11 +48,13 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<ActionResult> Delete(
+        int id,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DeleteProjectRequest? request)
     {
         try
         {
-            var result = await _projectService.DeleteAsync(id);
+            var result = await _projectService.DeleteAsync(id, request?.TargetProjectId);
             if (!result)
                 return NotFound(new ProblemDetails { Title = "Projeto não encontrado", Status = 404 });
             return NoContent();

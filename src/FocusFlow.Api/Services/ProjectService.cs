@@ -10,7 +10,7 @@ public interface IProjectService
     Task<ProjectDto?> GetByIdAsync(int id);
     Task<ProjectDto> CreateAsync(CreateProjectRequest request);
     Task<ProjectDto?> UpdateAsync(int id, UpdateProjectRequest request);
-    Task<bool> DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id, int? targetProjectId);
     Task EnsureGeralProjectExistsAsync();
 }
 
@@ -66,20 +66,35 @@ public class ProjectService : IProjectService
 
         if (project is null) return null;
 
+        var previousName = project.Name;
+        var previousVaultPath = project.VaultPath;
+
         if (request.Name is not null)       project.Name      = request.Name.Trim();
         if (request.VaultPath is not null)  project.VaultPath = request.VaultPath.Trim();
         if (request.Color is not null)     project.Color     = request.Color;
         project.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        var projectNameChanged = !string.Equals(previousName, project.Name, StringComparison.Ordinal);
+        var vaultPathChanged = !string.Equals(previousVaultPath, project.VaultPath, StringComparison.Ordinal);
+
+        if (projectNameChanged || vaultPathChanged)
+        {
+            await _sync.DeleteProjectVaultOutputAsync(previousVaultPath, previousName);
+        }
+
         await _sync.SyncProjectToVault(id);
 
         return project.ToDto(project.Tasks.Count);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int? targetProjectId)
     {
-        var project = await _db.Projects.FindAsync(id);
+        var project = await _db.Projects
+            .Include(p => p.Tasks)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
         if (project is null) return false;
 
         if (project.Name == "Geral")
@@ -87,23 +102,57 @@ public class ProjectService : IProjectService
             throw new InvalidOperationException("O projeto 'Geral' não pode ser excluído.");
         }
 
-        var geralProject = await _db.Projects.FirstOrDefaultAsync(p => p.Name == "Geral");
-        if (geralProject is null)
+        Project? destinationProject = null;
+        var tasksToMove = project.Tasks.OrderBy(t => t.SortOrder).ToList();
+
+        if (tasksToMove.Count > 0)
         {
-            throw new InvalidOperationException("Projeto 'Geral' não encontrado. Não é possível mover as tarefas.");
+            if (!targetProjectId.HasValue)
+            {
+                throw new InvalidOperationException("Este projeto possui tarefas. Selecione um projeto de destino para mover as tarefas.");
+            }
+
+            if (targetProjectId.Value == id)
+            {
+                throw new InvalidOperationException("O projeto de destino deve ser diferente do projeto excluído.");
+            }
+
+            destinationProject = await _db.Projects.FirstOrDefaultAsync(p => p.Id == targetProjectId.Value);
+            if (destinationProject is null)
+            {
+                throw new InvalidOperationException("Projeto de destino não encontrado.");
+            }
+
+            var maxSortOrder = await _db.Tasks
+                .Where(t => t.ProjectId == destinationProject.Id)
+                .Select(t => (int?)t.SortOrder)
+                .MaxAsync() ?? -1;
+
+            var now = DateTime.UtcNow;
+            for (var index = 0; index < tasksToMove.Count; index++)
+            {
+                var task = tasksToMove[index];
+                task.ProjectId = destinationProject.Id;
+                task.Project = destinationProject;
+                task.SortOrder = maxSortOrder + index + 1;
+                task.UpdatedAt = now;
+            }
         }
 
-        var tasksToMove = await _db.Tasks.Where(t => t.ProjectId == id).ToListAsync();
-        foreach (var task in tasksToMove)
-        {
-            task.ProjectId = geralProject.Id;
-        }
         await _db.SaveChangesAsync();
+
+        var previousVaultPath = project.VaultPath;
+        var previousName = project.Name;
 
         _db.Projects.Remove(project);
         await _db.SaveChangesAsync();
 
-        await _sync.SyncProjectToVault(geralProject.Id);
+        if (destinationProject is not null)
+        {
+            await _sync.SyncProjectToVault(destinationProject.Id);
+        }
+
+        await _sync.DeleteProjectVaultOutputAsync(previousVaultPath, previousName);
 
         return true;
     }
