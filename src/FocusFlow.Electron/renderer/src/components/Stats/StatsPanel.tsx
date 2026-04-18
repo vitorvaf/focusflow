@@ -18,7 +18,11 @@ function StatCard({ label, value, sub }: StatCardProps) {
   );
 }
 
-export function StatsPanel() {
+interface StatsPanelProps {
+  projectId?: number;
+}
+
+export function StatsPanel({ projectId }: StatsPanelProps) {
   const [stats, setStats] = useState<PomodoroStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +33,7 @@ export function StatsPanel() {
       .then(setStats)
       .catch(err => setError(err instanceof Error ? err.message : 'Erro ao carregar estatísticas'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   return (
     <div className="p-6 max-w-lg">

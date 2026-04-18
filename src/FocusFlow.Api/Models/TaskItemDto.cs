@@ -4,7 +4,7 @@ namespace FocusFlow.Api.Models;
 public class TaskItemDto
 {
     public int Id { get; set; }
-    public int BoardId { get; set; }
+    public int ProjectId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public TaskStatus Status { get; set; }

@@ -3,10 +3,12 @@ export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type PomodoroType = 'Focus' | 'ShortBreak' | 'LongBreak';
 export type TimerState = 'Idle' | 'Focus' | 'ShortBreak' | 'LongBreak' | 'Paused';
 
-export interface BoardDto {
+export interface ProjectDto {
   id: number;
   name: string;
   vaultPath: string | null;
+  color: string;
+  taskCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,7 +21,7 @@ export interface TagDto {
 
 export interface TaskItemDto {
   id: number;
-  boardId: number;
+  projectId: number;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -48,6 +50,7 @@ export interface PomodoroStatusDto {
   state: TimerState;
   type: PomodoroType | null;
   taskId: number | null;
+  projectId: number | null;
   remainingSeconds: number;
   totalSeconds: number;
   sessionId: number | null;
@@ -69,13 +72,20 @@ export interface AppSettingsDto {
   vaultPath: string;
 }
 
-export interface CreateBoardRequest {
+export interface CreateProjectRequest {
   name: string;
   vaultPath?: string;
+  color?: string;
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+  vaultPath?: string;
+  color?: string;
 }
 
 export interface CreateTaskRequest {
-  boardId: number;
+  projectId: number;
   title: string;
   description?: string;
   priority?: TaskPriority;
@@ -101,5 +111,6 @@ export interface ReorderTaskRequest {
 
 export interface StartPomodoroRequest {
   taskId: number;
+  projectId: number;
   type: PomodoroType;
 }

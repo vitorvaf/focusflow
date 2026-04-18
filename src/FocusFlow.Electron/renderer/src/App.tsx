@@ -7,59 +7,64 @@ import { PomodoroTimer } from './components/PomodoroTimer/PomodoroTimer';
 import { StatsPanel } from './components/Stats/StatsPanel';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { MiniTimer } from './components/MiniTimer/MiniTimer';
-import { useTasks } from './hooks/useTasks';
+import { ProjectProvider, useProjectContext } from './contexts/ProjectContext';
 import { useSettings } from './hooks/useSettings';
 import './styles/global.css';
-
-const ACTIVE_BOARD_ID = 1;
 
 function MainApp() {
   const [activeView, setActiveView]     = useState<ActiveView>('board');
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
+  const { selectedProject, isLoading: projectsLoading } = useProjectContext();
   const { settings, toggleDark } = useSettings();
-  const { tasks, refetch: refetchTasks } = useTasks(ACTIVE_BOARD_ID);
 
-  // Apply dark mode class on initial load
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.darkMode);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settings.darkMode]);
 
   const handleTaskSelectedForTimer = (taskId: number) => {
     setSelectedTaskId(taskId);
     setActiveView('timer');
   };
 
-  const handleTaskUpdated = (taskId: number) => {
-    void refetchTasks();
-    void taskId;
-  };
+  if (projectsLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-400">
+        Carregando...
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
       <Header
-        boardName="Meu Board"
+        projectName={selectedProject?.name ?? 'Projeto'}
+        projectColor={selectedProject?.color}
         darkMode={settings.darkMode}
         onToggleDark={toggleDark}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar activeView={activeView} onNavigate={setActiveView} />
         <main className="flex-1 overflow-auto">
-          {activeView === 'board' && (
+          {activeView === 'board' && selectedProject && (
             <KanbanBoard
-              boardId={ACTIVE_BOARD_ID}
+              key={`board-${selectedProject.id}`}
+              projectId={selectedProject.id}
+              projectColor={selectedProject.color}
+              projectName={selectedProject.name}
               onTaskSelectedForTimer={handleTaskSelectedForTimer}
             />
           )}
-          {activeView === 'timer' && (
+          {activeView === 'timer' && selectedProject && (
             <PomodoroTimer
-              tasks={tasks}
+              key={`timer-${selectedProject.id}`}
+              projectId={selectedProject.id}
+              projectColor={selectedProject.color}
               selectedTaskId={selectedTaskId}
               onSelectTask={setSelectedTaskId}
-              onTaskUpdated={handleTaskUpdated}
             />
           )}
-          {activeView === 'stats'    && <StatsPanel />}
+          {activeView === 'stats'    && <StatsPanel projectId={selectedProject?.id} />}
           {activeView === 'settings' && <SettingsPanel />}
         </main>
       </div>
@@ -69,11 +74,13 @@ function MainApp() {
 
 export function App() {
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/mini-timer" element={<MiniTimer />} />
-      </Routes>
-    </HashRouter>
+    <ProjectProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<MainApp />} />
+          <Route path="/mini-timer" element={<MiniTimer />} />
+        </Routes>
+      </HashRouter>
+    </ProjectProvider>
   );
 }

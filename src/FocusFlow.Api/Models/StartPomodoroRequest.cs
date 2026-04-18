@@ -9,6 +9,10 @@ public class StartPomodoroRequest
     [Required]
     public int TaskId { get; set; }
 
+    /// <summary>The project to associate with this session.</summary>
+    [Required]
+    public int ProjectId { get; set; }
+
     /// <summary>The type of session to start.</summary>
     public PomodoroType Type { get; set; } = PomodoroType.Focus;
 }

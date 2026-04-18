@@ -8,7 +8,7 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<Board> Boards => Set<Board>();
+    public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<PomodoroSession> PomodoroSessions => Set<PomodoroSession>();
     public DbSet<Tag> Tags => Set<Tag>();
@@ -18,25 +18,26 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Board>(b =>
+        modelBuilder.Entity<Project>(b =>
         {
             b.HasKey(x => x.Id);
             b.Property(x => x.Name).IsRequired().HasMaxLength(200);
             b.Property(x => x.VaultPath).HasMaxLength(500);
+            b.Property(x => x.Color).HasMaxLength(7).HasDefaultValue("#6366f1");
         });
 
         modelBuilder.Entity<TaskItem>(b =>
         {
             b.HasKey(x => x.Id);
             b.Property(x => x.Title).IsRequired().HasMaxLength(500);
-            b.HasOne(x => x.Board)
+            b.HasOne(x => x.Project)
              .WithMany(x => x.Tasks)
-             .HasForeignKey(x => x.BoardId)
+             .HasForeignKey(x => x.ProjectId)
              .OnDelete(DeleteBehavior.Cascade);
             b.HasMany(x => x.Tags)
              .WithMany(x => x.Tasks)
              .UsingEntity("TaskTag");
-            b.HasIndex(x => new { x.BoardId, x.SortOrder });
+            b.HasIndex(x => new { x.ProjectId, x.SortOrder });
             b.HasIndex(x => x.Status);
         });
 
@@ -72,11 +73,12 @@ public class AppDbContext : DbContext
     {
         var seedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        modelBuilder.Entity<Board>().HasData(new Board
+        modelBuilder.Entity<Project>().HasData(new Project
         {
-            Id = 1,
-            Name = "Meu Board",
+            Id        = 1,
+            Name      = "Geral",
             VaultPath = null,
+            Color     = "#6366f1",
             CreatedAt = seedDate,
             UpdatedAt = seedDate,
         });

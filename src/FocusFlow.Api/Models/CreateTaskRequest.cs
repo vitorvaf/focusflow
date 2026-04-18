@@ -6,7 +6,7 @@ namespace FocusFlow.Api.Models;
 public class CreateTaskRequest
 {
     [Required]
-    public int BoardId { get; set; }
+    public int ProjectId { get; set; }
 
     [Required, MaxLength(500)]
     public string Title { get; set; } = string.Empty;

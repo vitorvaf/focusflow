@@ -16,15 +16,15 @@ public class TasksController : ControllerBase
         _taskService = taskService;
     }
 
-    /// <summary>Returns tasks for a board, optionally filtered by status.</summary>
-    /// <param name="boardId">The board ID.</param>
+    /// <summary>Returns tasks for a project, optionally filtered by status.</summary>
+    /// <param name="projectId">The project ID.</param>
     /// <param name="status">Optional status filter.</param>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TaskItemDto>>> GetAll(
-        [FromQuery] int boardId,
+        [FromQuery] int projectId,
         [FromQuery] TaskStatus? status = null)
     {
-        var tasks = await _taskService.GetAllAsync(boardId, status);
+        var tasks = await _taskService.GetAllAsync(projectId, status);
         return Ok(tasks);
     }
 

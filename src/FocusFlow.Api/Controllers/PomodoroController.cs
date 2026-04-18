@@ -19,14 +19,14 @@ public class PomodoroController : ControllerBase
     }
 
     /// <summary>Starts a new Pomodoro session.</summary>
-    /// <param name="request">Task ID and session type.</param>
+    /// <param name="request">Task ID, Project ID and session type.</param>
     /// <returns>The current timer status after starting.</returns>
     [HttpPost("start")]
     public async Task<ActionResult<PomodoroStatusDto>> Start([FromBody] StartPomodoroRequest request)
     {
         try
         {
-            var status = await _pomodoroService.StartAsync(request.TaskId, request.Type);
+            var status = await _pomodoroService.StartAsync(request.TaskId, request.ProjectId, request.Type);
             return Ok(status);
         }
         catch (InvalidOperationException ex)

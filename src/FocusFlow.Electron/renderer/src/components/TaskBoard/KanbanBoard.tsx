@@ -15,7 +15,9 @@ import { TaskForm } from './TaskForm';
 import type { TaskItemDto, TaskStatus, CreateTaskRequest, UpdateTaskRequest } from '../../types';
 
 interface KanbanBoardProps {
-  boardId: number;
+  projectId: number;
+  projectColor?: string;
+  projectName?: string;
   onTaskSelectedForTimer?: (taskId: number) => void;
 }
 
@@ -30,8 +32,8 @@ const COLUMNS: { title: string; status: TaskStatus }[] = [
   { title: 'Concluído',    status: 'Done' },
 ];
 
-export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProps) {
-  const { tasks, loading, error, create, update, updateStatus, reorder, remove } = useTasks(boardId);
+export function KanbanBoard({ projectId, projectColor, projectName, onTaskSelectedForTimer }: KanbanBoardProps) {
+  const { tasks, loading, error, create, update, updateStatus, reorder, remove } = useTasks(projectId);
   const [activeTask, setActiveTask] = useState<TaskItemDto | null>(null);
   const [editModal, setEditModal] = useState<EditModalState | null>(null);
 
@@ -54,7 +56,6 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
 
     const overId = over.id;
 
-    // Check if dropped over a column (TaskStatus string) or another task
     const columnStatuses = COLUMNS.map(c => c.status) as string[];
     const targetStatus = columnStatuses.includes(String(overId))
       ? (String(overId) as TaskStatus)
@@ -63,10 +64,8 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
     if (!targetStatus) return;
 
     if (targetStatus !== draggedTask.status) {
-      // Cross-column move
       await updateStatus(draggedTask.id, targetStatus);
     } else if (typeof overId === 'number' && overId !== draggedTask.id) {
-      // Same-column reorder
       const overTask = tasks.find(t => t.id === overId);
       if (overTask) await reorder(draggedTask.id, overTask.sortOrder);
     }
@@ -100,6 +99,16 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
 
   return (
     <div className="h-full overflow-hidden flex flex-col">
+      {projectName && (
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: projectColor || '#6366f1' }}
+          />
+          <h1 className="text-lg font-semibold text-gray-100">{projectName}</h1>
+        </div>
+      )}
+
       {error && (
         <div className="mx-4 mt-3 px-3 py-2 bg-red-900/30 border border-red-800 rounded-lg text-xs text-red-400">
           {error}
@@ -118,7 +127,7 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
               key={col.status}
               title={col.title}
               status={col.status}
-              boardId={boardId}
+              projectId={projectId}
               tasks={tasks.filter(t => t.status === col.status)}
               onSelectTask={handleSelectTask}
               onCreateTask={async (data) => { await create(data); }}
@@ -135,7 +144,6 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
         </DragOverlay>
       </DndContext>
 
-      {/* Edit modal */}
       {editModal && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
@@ -151,7 +159,7 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
                     className="text-xs text-indigo-400 hover:text-indigo-300"
                     title="Iniciar no timer"
                   >
-                    🍅 Timer
+                    Timer
                   </button>
                 )}
                 <button
@@ -163,7 +171,7 @@ export function KanbanBoard({ boardId, onTaskSelectedForTimer }: KanbanBoardProp
               </div>
             </div>
             <TaskForm
-              boardId={boardId}
+              projectId={projectId}
               initialValues={{
                 title: editModal.task.title,
                 description: editModal.task.description ?? '',

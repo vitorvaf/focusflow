@@ -7,8 +7,8 @@ public class TaskItem
 {
     public int Id { get; set; }
 
-    public int BoardId { get; set; }
-    public Board Board { get; set; } = null!;
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
 
     [Required, MaxLength(500)]
     public string Title { get; set; } = string.Empty;

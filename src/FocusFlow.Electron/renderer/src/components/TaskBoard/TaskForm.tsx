@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { CreateTaskRequest, TaskPriority, TaskStatus, UpdateTaskRequest } from '../../types';
 
 interface TaskFormProps {
-  boardId: number;
+  projectId: number;
   defaultStatus?: TaskStatus;
   initialValues?: {
     title: string;
@@ -22,7 +22,7 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: 'Urgent', label: 'Urgente' },
 ];
 
-export function TaskForm({ boardId, defaultStatus, initialValues, onSubmit, onCancel }: TaskFormProps) {
+export function TaskForm({ projectId, defaultStatus, initialValues, onSubmit, onCancel }: TaskFormProps) {
   const [title, setTitle]           = useState(initialValues?.title ?? '');
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [priority, setPriority]     = useState<TaskPriority>(initialValues?.priority ?? 'Medium');
@@ -47,7 +47,7 @@ export function TaskForm({ boardId, defaultStatus, initialValues, onSubmit, onCa
         } satisfies UpdateTaskRequest);
       } else {
         await onSubmit({
-          boardId,
+          projectId,
           title: title.trim(),
           description: description.trim() || undefined,
           priority,

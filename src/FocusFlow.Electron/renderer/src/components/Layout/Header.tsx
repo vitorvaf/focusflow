@@ -1,10 +1,11 @@
 interface HeaderProps {
-  boardName: string;
+  projectName?: string;
+  projectColor?: string;
   darkMode: boolean;
   onToggleDark: () => void;
 }
 
-export function Header({ boardName, darkMode, onToggleDark }: HeaderProps) {
+export function Header({ projectName, projectColor, darkMode, onToggleDark }: HeaderProps) {
   return (
     <header
       className="flex items-center justify-between h-12 px-4 border-b border-gray-700 bg-gray-900 select-none shrink-0"
@@ -13,8 +14,19 @@ export function Header({ boardName, darkMode, onToggleDark }: HeaderProps) {
       <div className="flex items-center gap-2">
         <span className="text-lg">🍅</span>
         <span className="text-sm font-semibold text-white">FocusFlow</span>
-        {boardName && (
-          <span className="text-xs text-gray-400 ml-2">{boardName}</span>
+        {projectName && (
+          <>
+            <span className="text-gray-600">/</span>
+            <div className="flex items-center gap-1.5">
+              {projectColor && (
+                <div 
+                  className="w-2.5 h-2.5 rounded-full" 
+                  style={{ backgroundColor: projectColor }}
+                />
+              )}
+              <span className="text-xs text-gray-400">{projectName}</span>
+            </div>
+          </>
         )}
       </div>
       <button
