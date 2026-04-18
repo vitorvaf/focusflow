@@ -131,6 +131,31 @@ public class ObsidianSyncServiceTests : IDisposable
         File.Exists(Path.Combine(_tempDir, "Unix Path Projeto", "kanban.md")).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task DeleteProjectVaultOutputAsync_ExistingProjectOutput_RemovesFileAndDirectory()
+    {
+        var project = await SeedProjectAsync("Projeto para Deletar", _tempDir);
+        await _sut.SyncProjectToVault(project.Id);
+
+        var projectDirectory = Path.Combine(_tempDir, "Projeto para Deletar");
+        var kanbanPath = Path.Combine(projectDirectory, "kanban.md");
+
+        File.Exists(kanbanPath).Should().BeTrue();
+
+        await _sut.DeleteProjectVaultOutputAsync(project.VaultPath, project.Name);
+
+        File.Exists(kanbanPath).Should().BeFalse();
+        Directory.Exists(projectDirectory).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeleteProjectVaultOutputAsync_MissingProjectOutput_DoesNotThrow()
+    {
+        var act = async () => await _sut.DeleteProjectVaultOutputAsync(_tempDir, "Inexistente");
+
+        await act.Should().NotThrowAsync();
+    }
+
     // ── GenerateKanbanMarkdown ────────────────────────────────────────────────
 
     [Fact]

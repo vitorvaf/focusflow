@@ -2,6 +2,7 @@ import type {
   ProjectDto,
   CreateProjectRequest,
   UpdateProjectRequest,
+  DeleteProjectRequest,
   TaskItemDto,
   CreateTaskRequest,
   UpdateTaskRequest,
@@ -32,8 +33,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(response.status, text);
+    let message = `Erro na requisição (HTTP ${response.status})`;
+    const contentType = response.headers.get('content-type') ?? '';
+
+    if (contentType.includes('json')) {
+      try {
+        const problem = await response.json() as { title?: string; detail?: string };
+        message = problem.title ?? problem.detail ?? message;
+      } catch {
+        // fall back to generic message
+      }
+    } else {
+      const text = await response.text();
+      if (text.trim()) {
+        message = text;
+      }
+    }
+
+    throw new ApiError(response.status, message);
   }
 
   if (response.status === 204) {
@@ -52,8 +69,11 @@ export const projectsApi = {
     request<ProjectDto>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: UpdateProjectRequest) =>
     request<ProjectDto>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: number) =>
-    request<void>(`/projects/${id}`, { method: 'DELETE' }),
+  delete: (id: number, data?: DeleteProjectRequest) =>
+    request<void>(`/projects/${id}`, {
+      method: 'DELETE',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
 };
 
 export const tasksApi = {

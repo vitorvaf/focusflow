@@ -64,6 +64,14 @@ function PlusIcon() {
   );
 }
 
+function EditIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  );
+}
+
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
     <svg 
@@ -81,6 +89,22 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const { projects, selectedProject, selectProject, isLoading } = useProjectContext();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<number | undefined>(undefined);
+
+  const openCreateProjectForm = () => {
+    setEditingProjectId(undefined);
+    setShowProjectForm(true);
+  };
+
+  const openEditProjectForm = (projectId: number) => {
+    setEditingProjectId(projectId);
+    setShowProjectForm(true);
+  };
+
+  const closeProjectForm = () => {
+    setShowProjectForm(false);
+    setEditingProjectId(undefined);
+  };
 
   const navItems: NavItem[] = [
     { id: 'board',    label: 'Quadro',        icon: <BoardIcon /> },
@@ -108,34 +132,49 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
                   <div className="px-3 py-2 text-sm text-gray-500">Carregando...</div>
                 ) : (
                   projects.map(project => (
-                    <button
-                      key={project.id}
-                      onClick={() => selectProject(project.id)}
-                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                        selectedProject?.id === project.id
-                          ? 'bg-indigo-600 text-white font-medium'
-                          : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
-                      }`}
-                    >
-                      <div 
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                        style={{ 
-                          backgroundColor: project.color + '20',
-                          color: project.color
-                        }}
+                    <div key={project.id} className="group flex items-center gap-1">
+                      <button
+                        onClick={() => selectProject(project.id)}
+                        className={`flex items-center gap-3 flex-1 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                          selectedProject?.id === project.id
+                            ? 'bg-indigo-600 text-white font-medium'
+                            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
+                        }`}
                       >
-                        {project.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <span className="flex-1 truncate">{project.name}</span>
-                      <span className={`text-xs ${selectedProject?.id === project.id ? 'text-indigo-200' : 'text-gray-500'}`}>
-                        {project.taskCount}
-                      </span>
-                    </button>
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                          style={{
+                            backgroundColor: project.color + '20',
+                            color: project.color
+                          }}
+                        >
+                          {project.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="flex-1 truncate">{project.name}</span>
+                        <span className={`text-xs ${selectedProject?.id === project.id ? 'text-indigo-200' : 'text-gray-500'}`}>
+                          {project.taskCount}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openEditProjectForm(project.id)}
+                        className={`p-1 rounded text-xs transition-colors ${
+                          selectedProject?.id === project.id
+                            ? 'text-indigo-100 hover:text-white hover:bg-indigo-500/40'
+                            : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'
+                        }`}
+                        title={`Editar projeto ${project.name}`}
+                        aria-label={`Editar projeto ${project.name}`}
+                      >
+                        <EditIcon />
+                      </button>
+                    </div>
                   ))
                 )}
 
                 <button
-                  onClick={() => setShowProjectForm(true)}
+                  onClick={openCreateProjectForm}
                   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-100 transition-colors"
                 >
                   <PlusIcon />
@@ -165,7 +204,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       </nav>
 
       {showProjectForm && (
-        <ProjectForm onClose={() => setShowProjectForm(false)} />
+        <ProjectForm projectId={editingProjectId} onClose={closeProjectForm} />
       )}
     </>
   );

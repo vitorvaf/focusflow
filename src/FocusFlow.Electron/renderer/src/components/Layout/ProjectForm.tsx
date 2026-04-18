@@ -23,14 +23,17 @@ const PRESET_COLORS = [
 export function ProjectForm({ projectId, onClose }: ProjectFormProps) {
   const { projects, createProject, updateProject, deleteProject } = useProjectContext();
   const existingProject = projectId ? projects.find(p => p.id === projectId) : null;
+  const destinationProjects = projects.filter(project => project.id !== projectId);
 
   const [name, setName] = useState(existingProject?.name ?? '');
   const [color, setColor] = useState(existingProject?.color ?? PRESET_COLORS[0]);
   const [vaultPath, setVaultPath] = useState(existingProject?.vaultPath ?? '');
+  const [targetProjectId, setTargetProjectId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = !!projectId;
+  const hasTasksToMove = (existingProject?.taskCount ?? 0) > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +66,21 @@ export function ProjectForm({ projectId, onClose }: ProjectFormProps) {
   };
 
   const handleDelete = async () => {
-    if (!projectId || !confirm('Tem certeza que deseja excluir este projeto? As tarefas serão movidas para "Geral".')) {
+    if (!projectId) {
+      return;
+    }
+
+    if (hasTasksToMove && !targetProjectId) {
+      setError('Selecione um projeto de destino para mover as tarefas antes de excluir.');
+      return;
+    }
+
+    const targetProject = destinationProjects.find(project => project.id === Number(targetProjectId));
+    const confirmationMessage = hasTasksToMove
+      ? `Tem certeza que deseja excluir este projeto? As tarefas serão movidas para "${targetProject?.name ?? 'projeto selecionado'}".`
+      : 'Tem certeza que deseja excluir este projeto?';
+
+    if (!confirm(confirmationMessage)) {
       return;
     }
 
@@ -71,10 +88,11 @@ export function ProjectForm({ projectId, onClose }: ProjectFormProps) {
     setError(null);
 
     try {
-      await deleteProject(projectId);
+      await deleteProject(projectId, hasTasksToMove ? Number(targetProjectId) : undefined);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao excluir projeto');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -144,6 +162,29 @@ export function ProjectForm({ projectId, onClose }: ProjectFormProps) {
               Caminho para o vault do Obsidian onde as tarefas serão sincronizadas
             </p>
           </div>
+
+          {isEditing && existingProject?.name !== 'Geral' && hasTasksToMove && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-sm text-amber-300 mb-2">
+                Este projeto possui {existingProject.taskCount} tarefa(s). Escolha para qual projeto elas devem ser movidas antes da exclusão.
+              </p>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Mover tarefas para
+              </label>
+              <select
+                value={targetProjectId}
+                onChange={e => setTargetProjectId(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">Selecione um projeto</option>
+                {destinationProjects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && (
             <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">

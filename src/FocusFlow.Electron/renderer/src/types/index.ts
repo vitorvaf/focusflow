@@ -84,6 +84,10 @@ export interface UpdateProjectRequest {
   color?: string;
 }
 
+export interface DeleteProjectRequest {
+  targetProjectId?: number;
+}
+
 export interface CreateTaskRequest {
   projectId: number;
   title: string;
