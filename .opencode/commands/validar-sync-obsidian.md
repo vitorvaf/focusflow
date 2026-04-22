@@ -1,10 +1,12 @@
-# Comando: validar-sync-obsidian
+---
+description: Valida o fluxo de sincronizacao com o Obsidian e investiga problemas relacionados
+agent: debugger
+---
 
-Este comando invoca o agente `debugger` para investigar e validar o mecanismo de sincronização com o Obsidian, que é crítico para o projeto.
+Valide o fluxo de sincronizacao com o Obsidian usando o contexto informado em `$ARGUMENTS`.
 
-## Uso:
-`/validar-sync-obsidian <id_do_board_ou_contexto>`
-
-**Exemplo:** `/validar-sync-obsidian boardId=123`
-
-O agente `debugger` irá analisar o `ObsidianSyncService`, verificar a existência e o conteúdo dos arquivos Markdown gerados e quaisquer logs relacionados à sincronização. Ele pode simular cenários (se instruído) ou investigar um problema específico na sincronização, sempre com foco em diagnosticar e não em alterar o código diretamente.
+Durante a investigacao:
+- analise o `ObsidianSyncService` e os pontos que disparam sincronizacao
+- confira arquivos Markdown, formato gerado e comportamento esperado
+- identifique falhas de fluxo, gaps de sincronizacao ou riscos de inconsistencias
+- entregue um diagnostico claro sem alterar o codigo, salvo instrucao explicita
