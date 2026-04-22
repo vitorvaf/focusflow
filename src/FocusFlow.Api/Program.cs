@@ -12,8 +12,9 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=focusflow.db";
+var connectionString = SqliteConnectionStringResolver.Resolve(
+    builder.Configuration.GetConnectionString("DefaultConnection"),
+    Environment.GetEnvironmentVariable("FOCUSFLOW_DATA_PATH"));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
