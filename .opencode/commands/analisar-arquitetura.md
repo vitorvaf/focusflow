@@ -1,10 +1,14 @@
-# Comando: analisar-arquitetura
+---
+description: Analisa a arquitetura de um componente, arquivo ou area do projeto
+agent: planner
+---
 
-Este comando invoca o agente `planner` para realizar uma análise detalhada da arquitetura do projeto ou de um componente específico.
+Analise a arquitetura do componente, arquivo ou area descrita em `$ARGUMENTS`.
 
-## Uso:
-`/analisar-arquitetura <componente_ou_área>`
+Na resposta:
+- explique como a area funciona hoje
+- identifique dependencias, fluxos principais e pontos de acoplamento
+- destaque riscos, oportunidades de melhoria e impactos de mudanca
+- proponha um plano de implementacao quando isso ajudar
 
-**Exemplo:** `/analisar-arquitetura src/FocusFlow.Api/Services/ObsidianSyncService.cs`
-
-O agente `planner` irá ler os arquivos relevantes e fornecerá uma visão geral, explicando como o componente funciona, suas dependências e sua relação com o restante do sistema, aderindo às convenções de arquitetura descritas nos documentos `AGENTS.md` e `.github/copilot-instructions.md`.
+Siga as convencoes do projeto definidas em `AGENTS.md` e `.github/copilot-instructions.md`.

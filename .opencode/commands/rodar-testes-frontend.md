@@ -1,8 +1,12 @@
-# Comando: rodar-testes-frontend
+---
+description: Executa os testes do frontend com Vitest
+agent: tester
+---
 
-Este comando invoca o agente `tester` para executar os testes do frontend (`Vitest`).
+Execute os testes do frontend em `src/FocusFlow.Electron` usando `npm run test`.
 
-## Uso:
-`/rodar-testes-frontend`
-
-O agente `tester` irá navegar até `src/FocusFlow.Electron` e executar `npm run test`, reportando os resultados. Ele interpretará o output e informará se os testes passaram ou falharam.
+Na resposta:
+- informe se os testes passaram ou falharam
+- resuma as falhas principais, se existirem
+- destaque suites, arquivos ou sintomas relevantes
+- sugira proximos passos se houver regressao

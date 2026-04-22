@@ -4,55 +4,17 @@
     "AGENTS.md",
     ".github/copilot-instructions.md"
   ],
-  "ignore": [
-    "**/node_modules",
-    "**/dist",
-    "**/bin",
-    "**/obj",
-    "**/*.csproj.user",
-    "**/*.db",
-    "**/*.sqlite",
-    "**/*.log",
-    "**/package-lock.json"
-  ],
-  "agents": {
-    "planner": {
-      "instructions": ".opencode/agents/planner.md"
-    },
-    "implementer": {
-      "instructions": ".opencode/agents/implementer.md"
-    },
-    "reviewer": {
-      "instructions": ".opencode/agents/reviewer.md"
-    },
-    "tester": {
-      "instructions": ".opencode/agents/tester.md"
-    },
-    "debugger": {
-      "instructions": ".opencode/agents/debugger.md"
-    }
-  },
-  "commands": {
-    "analisar-arquitetura": {
-      "instructions": ".opencode/commands/analisar-arquitetura.md"
-    },
-    "implementar-feature": {
-      "instructions": ".opencode/commands/implementar-feature.md"
-    },
-    "revisar-alteracoes": {
-      "instructions": ".opencode/commands/revisar-alteracoes.md"
-    },
-    "rodar-testes-backend": {
-      "instructions": ".opencode/commands/rodar-testes-backend.md"
-    },
-    "rodar-testes-frontend": {
-      "instructions": ".opencode/commands/rodar-testes-frontend.md"
-    },
-    "validar-sync-obsidian": {
-      "instructions": ".opencode/commands/validar-sync-obsidian.md"
-    },
-    "investigar-bug": {
-      "instructions": ".opencode/commands/investigar-bug.md"
-    }
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/bin/**",
+      "**/obj/**",
+      "**/*.csproj.user",
+      "**/*.db",
+      "**/*.sqlite",
+      "**/*.log",
+      "**/package-lock.json"
+    ]
   }
 }

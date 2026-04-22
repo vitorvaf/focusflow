@@ -1,10 +1,14 @@
-# Comando: investigar-bug
+---
+description: Investiga um bug e entrega um diagnostico com causa raiz provavel
+agent: debugger
+---
 
-Este comando invoca o agente `debugger` para investigar um bug específico.
+Investigue o bug descrito em `$ARGUMENTS`.
 
-## Uso:
-`/investigar-bug <descrição_do_bug_e_passos_para_reproduzir>`
+Durante a analise:
+- procure passos de reproducao, arquivos, servicos e fluxos relacionados
+- colete evidencias suficientes para sustentar a conclusao
+- identifique a causa raiz mais provavel
+- nao implemente a correcao, a menos que isso seja pedido explicitamente
 
-**Exemplo:** `/investigar-bug O timer Pomodoro não pausa corretamente após um Short Break. O problema parece estar em src/FocusFlow.Api/Services/PomodoroService.cs.`
-
-O agente `debugger` irá analisar o problema, ler arquivos relevantes, procurar logs e tentar identificar a causa raiz, fornecendo um diagnóstico detalhado. Ele não implementará a correção, mas fornecerá informações para que o `implementer` possa agir.
+Entregue um diagnostico claro com evidencias, impacto e sugestoes de correcao.

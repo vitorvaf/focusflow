@@ -1,8 +1,12 @@
-# Comando: rodar-testes-backend
+---
+description: Executa os testes unitarios do backend em .NET
+agent: tester
+---
 
-Este comando invoca o agente `tester` para executar os testes unitários do backend (`xUnit`).
+Execute os testes do backend em `tests/FocusFlow.Api.Tests` usando `dotnet test`.
 
-## Uso:
-`/rodar-testes-backend`
-
-O agente `tester` irá navegar até `tests/FocusFlow.Api.Tests` e executar `dotnet test`, reportando os resultados. Ele interpretará o output e informará se os testes passaram ou falharam.
+Na resposta:
+- informe se os testes passaram ou falharam
+- resuma as falhas principais, se existirem
+- destaque suites, arquivos ou sintomas relevantes
+- sugira proximos passos se houver regressao
