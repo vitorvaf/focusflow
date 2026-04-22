@@ -17,8 +17,10 @@
     "pack:exe": "npm run build && npx electron-builder --win nsis --config electron-builder.yml",
     "pack:msi": "npm run build && npx electron-builder --win msi --config electron-builder.yml",
     "pack:all": "npm run build && npx electron-builder --win nsis msi --config electron-builder.yml",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "npm run test:renderer && npm run test:main",
+    "test:renderer": "vitest run --config vite.config.ts",
+    "test:main": "vitest run --config vitest.main.config.ts",
+    "test:watch": "vitest --config vite.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

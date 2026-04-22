@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, Menu, Notification, dialog, globalShortcut } from 'electron';
 import * as path from 'path';
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess } from 'child_process';
 import * as net from 'net';
 import { createTray, updateTrayTooltip, updateTrayMenu } from './tray';
 import { createMiniWindow, closeMiniWindow, isMiniWindowOpen } from './miniWindow';
+import { getApiBinaryName, launchApiProcess, resolveApiProcessConfig } from './apiLauncher';
 
 let mainWindow: BrowserWindow | null = null;
 let apiProcess: ChildProcess | null = null;
@@ -21,15 +22,6 @@ const API_PORT = 5111;
 const API_BASE = `http://localhost:${API_PORT}`;
 const API_TIMEOUT_MS = 30_000;
 const API_RETRY_MS = 500;
-
-/**
- * Retorna o nome do executável da API conforme o SO.
- * Windows: FocusFlow.Api.exe
- * Linux/macOS: FocusFlow.Api
- */
-function getApiBinaryName(): string {
-  return isWindows ? 'FocusFlow.Api.exe' : 'FocusFlow.Api';
-}
 
 /**
  * Retorna o caminho onde o SQLite deve armazenar o banco em produção.
@@ -58,42 +50,6 @@ function getIconPath(): string {
 function showErrorAndQuit(message: string): void {
   dialog.showErrorBox('FocusFlow — Erro', message);
   app.quit();
-}
-
-/**
- * Retorna a configuração para iniciar o processo da API .NET.
- *
- * - Desenvolvimento: usa `dotnet run` no projeto fonte
- * - Produção: usa o executável self-contained embarcado em extraResources/api/
- */
-function getApiConfig(): { command: string; args: string[]; cwd?: string } {
-  if (isDev) {
-    const projectRoot = path.resolve(__dirname, '../../../../');
-    const apiProjectDir = path.join(projectRoot, 'src/FocusFlow.Api');
-    
-    // Different approaches based on platform
-    if (isLinux) {
-      // For Linux, let Electron spawn use its own PATH but with explicit shell
-      const dotnetCmd = process.env.PATH?.includes('/usr/bin') ? '/usr/bin/dotnet' : 'dotnet';
-      return {
-        command: dotnetCmd,
-        args: ['run', '--project', apiProjectDir, '--no-launch-profile'],
-        cwd: apiProjectDir,
-      };
-    } else {
-      return {
-        command: 'dotnet',
-        args: ['run', '--project', apiProjectDir, '--no-launch-profile'],
-        cwd: apiProjectDir,
-      };
-    }
-  }
-
-  const apiBinaryPath = path.join(process.resourcesPath, 'api', getApiBinaryName());
-  return {
-    command: apiBinaryPath,
-    args: [],
-  };
 }
 
 /**
@@ -144,35 +100,51 @@ async function waitForApi(): Promise<void> {
 
 /** Spawns the .NET API. */
 function startApiProcess(): void {
-  const config = getApiConfig();
+  const config = resolveApiProcessConfig({
+    isDev,
+    isLinux,
+    isWindows,
+    mainDir: __dirname,
+    resourcesPath: process.resourcesPath,
+    pathEnv: process.env.PATH,
+  });
   const dataPath = getDataPath();
-
-  const env = {
-    ...process.env,
-    ASPNETCORE_URLS: API_BASE,
-    ASPNETCORE_ENVIRONMENT: isDev ? 'Development' : 'Production',
-    DOTNET_ENVIRONMENT: isDev ? 'Development' : 'Production',
-    FOCUSFLOW_DATA_PATH: dataPath,
-  };
+  const environmentName = isDev ? 'Development' : 'Production';
 
   console.log(`[FocusFlow] Plataforma: ${process.platform} (${process.arch})`);
   console.log(`[FocusFlow] Dados em: ${dataPath}`);
   console.log(`[FocusFlow] PATH: ${process.env.PATH}`);
   console.log(`[FocusFlow] Iniciando API (${isDev ? 'DEV' : 'PROD'}): ${config.command} ${config.args.join(' ')}`);
 
-  // Use Node's exec to spawn dotnet - bypasses Electron's spawn issues
-  const { exec } = require('child_process');
-  const cmd = `${config.command} ${config.args.join(' ')}`;
-  
-  console.log(`[FocusFlow] Executando: ${cmd}`);
-  
-  // Skip spawn in dev mode - it's having issues on this Linux setup
-  // Just wait for API to be already running or fail gracefully
-  console.log('[FocusFlow] Pulando spawn - aguarde API externa ou inicie manualmente');
-  
-  // Placeholder - in a real implementation, would handle process properly
-  // This is just to satisfy TypeScript
-  apiProcess = null as any;
+  apiProcess = launchApiProcess({
+    config,
+    apiBase: API_BASE,
+    dataPath,
+    environmentName,
+    onStdout: (message) => {
+      console.log('[API]', message);
+    },
+    onStderr: (message) => {
+      console.error('[API:ERR]', message);
+    },
+    onError: (err) => {
+      console.error('[FocusFlow] Erro ao iniciar API:', err.message);
+
+      let hint = '';
+      if (err.message.includes('EACCES') && isLinux) {
+        hint = '\n\nDica: o binário pode não ter permissão de execução.\nRode: chmod +x ' +
+          path.join(process.resourcesPath, 'api', getApiBinaryName(isWindows));
+      }
+
+      showErrorAndQuit(`Não foi possível iniciar o servidor backend.\n\n${err.message}${hint}`);
+    },
+    onExit: (code, signal) => {
+      console.warn(`[FocusFlow] API encerrada (code=${code}, signal=${signal})`);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        showErrorAndQuit('O servidor backend parou inesperadamente. O app será encerrado.');
+      }
+    },
+  });
 }
 
 function createWindow(): void {
@@ -307,7 +279,7 @@ app.whenReady().then(async () => {
 
   // Linux: garantir permissão de execução no binário da API
   if (!isDev && isLinux) {
-    const apiBinary = path.join(process.resourcesPath, 'api', getApiBinaryName());
+    const apiBinary = path.join(process.resourcesPath, 'api', getApiBinaryName(isWindows));
     try {
       const fs = require('fs');
       fs.chmodSync(apiBinary, 0o755);
@@ -389,4 +361,3 @@ app.on('activate', () => {
     mainWindow.show();
   }
 });
-
